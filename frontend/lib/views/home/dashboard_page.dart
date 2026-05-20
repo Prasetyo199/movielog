@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/views/home/add_review_page.dart';
 import '../../models/review_model.dart';
 import 'widgets/review_card.dart';
+import '../../../services/api_services.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -23,73 +25,15 @@ class _DashboardPageState extends State<DashboardPage> {
     'Judul A-Z',
   ];
 
-  final List<ReviewModel> dummyReviews = [
-    const ReviewModel(
-      id: 1,
-      title: 'Interstellar',
-      type: 'Film',
-      genre: 'Sci-Fi',
-      releaseYear: 2014,
-      rating: 9.5,
-      reviewText:
-          'Film sci-fi yang sangat bagus dengan cerita emosional dan visual yang keren.',
-      reviewerName: 'Andi',
-      isMine: true,
-      imageUrl: 'https://picsum.photos/seed/interstellar/300/450',
-    ),
-    const ReviewModel(
-      id: 2,
-      title: 'Queen of Tears',
-      type: 'Drama',
-      genre: 'Romance',
-      releaseYear: 2024,
-      rating: 8.8,
-      reviewText:
-          'Drama Korea dengan konflik keluarga dan hubungan yang menarik untuk diikuti.',
-      reviewerName: 'Sinta',
-      isMine: false,
-      imageUrl: 'https://picsum.photos/seed/queenoftears/300/450',
-    ),
-    const ReviewModel(
-      id: 3,
-      title: 'Avengers: Endgame',
-      type: 'Film',
-      genre: 'Action',
-      releaseYear: 2019,
-      rating: 9.0,
-      reviewText:
-          'Penutup saga Avengers yang emosional, ramai, dan memuaskan untuk penggemar Marvel.',
-      reviewerName: 'Budi',
-      isMine: true,
-      imageUrl: 'https://picsum.photos/seed/avengers/300/450',
-    ),
-    const ReviewModel(
-      id: 4,
-      title: 'Moving',
-      type: 'Drama',
-      genre: 'Action, Fantasy',
-      releaseYear: 2023,
-      rating: 9.2,
-      reviewText:
-          'Drama dengan cerita keluarga, kekuatan super, dan aksi yang sangat seru.',
-      reviewerName: 'Raka',
-      isMine: false,
-      imageUrl: 'https://picsum.photos/seed/movingdrama/300/450',
-    ),
-    const ReviewModel(
-      id: 5,
-      title: 'The Batman',
-      type: 'Film',
-      genre: 'Crime, Mystery',
-      releaseYear: 2022,
-      rating: 8.7,
-      reviewText:
-          'Film Batman dengan suasana gelap, misteri kuat, dan visual yang sangat sinematik.',
-      reviewerName: 'Andi',
-      isMine: true,
-      imageUrl: 'https://picsum.photos/seed/thebatman/300/450',
-    ),
-  ];
+  late Future<List<dynamic>> futureReviews;
+
+  @override
+  void initState() {
+    super.initState();
+    futureReviews = ApiService.getReviews();
+  }
+
+  final List<ReviewModel> dummyReviews = [];
 
   Widget buildAppBarTitle() {
     if (selectedIndex == 0) {
@@ -218,11 +162,20 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  void addReview() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Nanti masuk ke halaman tambah review')),
-    );
-  }
+  void addReview() async {
+      // Membuka halaman AddReviewPage dan menunggu sampai halaman tersebut ditutup
+      final bool? isChanged = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AddReviewPage()),
+      );
+
+      // Jika user sukses menyimpan data baru, refresh FutureBuilder-nya otomatis
+      if (isChanged == true) {
+        setState(() {
+          futureReviews = ApiService.getReviews();
+        });
+      }
+    }
 
   void logout() {
     ScaffoldMessenger.of(
@@ -535,78 +488,115 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget buildHomePage() {
-    final reviews = getProcessedReviews();
-
+Widget buildHomePage() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         buildHeroHeader(),
-
         const SizedBox(height: 24),
-
         buildTrendingSection(),
-
         const SizedBox(height: 24),
-
         buildSearchAndFilter(),
-
         const SizedBox(height: 22),
-
         Row(
           children: [
             const Text(
               'Semua Review',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
-            Text(
-              '${reviews.length} data',
-              style: const TextStyle(color: Colors.white54),
-            ),
           ],
         ),
-
         const SizedBox(height: 12),
+        
+        // Jembatan FutureBuilder untuk menarik data dari Laravel:
+        FutureBuilder<List<dynamic>>(
+          future: futureReviews,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Colors.redAccent));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white70)));
+            }
 
-        buildReviewList(reviews),
+            final rawData = snapshot.data ?? [];
+            final List<ReviewModel> reviews = rawData.map((item) {
+              return ReviewModel(
+                id: item['id'],
+                title: item['title'],
+                type: item['type'] == 'film' ? 'Film' : 'Drama',
+                genre: item['genre'],
+                releaseYear: item['release_year'],
+                rating: double.parse(item['rating'].toString()),
+                reviewText: item['review_text'],
+                reviewerName: item['user'] != null ? item['user']['name'] : 'Anonim',
+                isMine: item['user_id'] == 1,
+                imageUrl: 'https://picsum.photos/seed/${item['id']}/300/450',
+              );
+            }).toList();
+
+            dummyReviews.clear();
+            dummyReviews.addAll(reviews);
+            final processedReviews = getProcessedReviews();
+
+            return buildReviewList(processedReviews);
+          },
+        ),
       ],
     );
   }
 
-  Widget buildMyReviewPage() {
-    final myReviews = getProcessedReviews(onlyMine: true);
-
+Widget buildMyReviewPage() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         const Text(
           'Review yang Kamu Buat',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold),
         ),
-
         const SizedBox(height: 6),
-
         const Text(
           'Di halaman ini, nanti user hanya bisa edit dan hapus review miliknya sendiri.',
           style: TextStyle(color: Colors.white60),
         ),
-
         const SizedBox(height: 18),
-
         buildSearchAndFilter(),
-
         const SizedBox(height: 18),
+        
+        FutureBuilder<List<dynamic>>(
+          future: futureReviews,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Colors.redAccent));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.white70)));
+            }
 
-        buildReviewList(myReviews),
+            final rawData = snapshot.data ?? [];
+            final List<ReviewModel> reviews = rawData.map((item) {
+              return ReviewModel(
+                id: item['id'],
+                title: item['title'],
+                type: item['type'] == 'film' ? 'Film' : 'Drama',
+                genre: item['genre'],
+                releaseYear: item['release_year'],
+                rating: double.parse(item['rating'].toString()),
+                reviewText: item['review_text'],
+                reviewerName: item['user'] != null ? item['user']['name'] : 'Anonim',
+                isMine: item['user_id'] == 1,
+                imageUrl: 'https://picsum.photos/seed/${item['id']}/300/450',
+              );
+            }).toList();
+
+            dummyReviews.clear();
+            dummyReviews.addAll(reviews);
+            final processedMyReviews = getProcessedReviews(onlyMine: true);
+
+            return buildReviewList(processedMyReviews);
+          },
+        ),
       ],
     );
   }
