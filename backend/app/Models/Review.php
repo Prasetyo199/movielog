@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Review extends Model
 {
     use HasFactory;
-
+    protected $table = 'reviews_tabel';
     // Mendaftarkan kolom yang boleh diisi (Mass Assignment)
     protected $fillable = [
         'user_id',
