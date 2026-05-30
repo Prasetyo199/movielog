@@ -7,6 +7,9 @@ class ApiService {
   static int? currentUserId;
   static String? currentUserName;
   static String? currentUserEmail;
+  static String? currentUserRole;
+
+  static bool get isAdmin => currentUserRole == 'admin';
 
   static Map<String, String> get headers {
     return {
@@ -37,6 +40,10 @@ class ApiService {
         currentUserId = user['id'];
         currentUserName = user['name'];
         currentUserEmail = user['email'];
+        currentUserRole = (user['role'] ?? 'user')
+            .toString()
+            .trim()
+            .toLowerCase();
         return data;
       }
 
@@ -70,6 +77,10 @@ class ApiService {
         currentUserId = user['id'];
         currentUserName = user['name'];
         currentUserEmail = user['email'];
+        currentUserRole = (user['role'] ?? 'user')
+            .toString()
+            .trim()
+            .toLowerCase();
         return data;
       }
 
@@ -110,5 +121,86 @@ class ApiService {
     } catch (e) {
       throw Exception('Error Koneksi: $e');
     }
+  }
+
+  static Future<List<dynamic>> getMovies() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/movies'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data'];
+      }
+
+      throw Exception('Gagal mengambil data movie');
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static Future<bool> addMovie(Map<String, dynamic> movieData) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/movies'),
+        headers: headers,
+        body: json.encode(movieData),
+      );
+
+      return response.statusCode == 201;
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static Future<bool> deleteMovie(int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/movies/$id'),
+        headers: headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static Future<List<dynamic>> getUsers() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/users'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data'];
+      }
+
+      throw Exception('Gagal mengambil data user');
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static Future<bool> deleteUser(int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/users/$id'),
+        headers: headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static void logout() {
+    authToken = null;
+    currentUserId = null;
+    currentUserName = null;
+    currentUserEmail = null;
+    currentUserRole = null;
   }
 }

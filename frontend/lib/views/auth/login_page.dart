@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_services.dart';
+import 'package:frontend/views/admin/admin_dashboard_page.dart';
 import 'package:frontend/views/auth/register_page.dart';
 import 'package:frontend/views/home/dashboard_page.dart';
 
@@ -41,10 +42,16 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => DashboardPage(
-            userEmail:
-                ApiService.currentUserEmail ?? _emailController.text.trim(),
-          ),
+          builder: (context) {
+            if (ApiService.isAdmin) {
+              return const AdminDashboardPage();
+            }
+
+            return DashboardPage(
+              userEmail:
+                  ApiService.currentUserEmail ?? _emailController.text.trim(),
+            );
+          },
         ),
       );
     } catch (e) {

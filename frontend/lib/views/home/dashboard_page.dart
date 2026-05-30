@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/views/admin/admin_dashboard_page.dart';
 import 'package:frontend/views/home/add_review_page.dart';
 import 'package:frontend/views/auth/login_page.dart';
 import '../../models/review_model.dart';
@@ -37,6 +38,16 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     futureReviews = ApiService.getReviews();
+
+    if (ApiService.isAdmin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
+        );
+      });
+    }
   }
 
   final List<ReviewModel> dummyReviews = [];
@@ -281,6 +292,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
   void logout() {
+    ApiService.logout();
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),

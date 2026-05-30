@@ -18,6 +18,7 @@ class AddReviewPageState extends State<AddReviewPage> {
   double selectedRating = 8;
 
   bool _isLoading = false;
+  late Future<List<dynamic>> futureMovies;
 
   final List<Map<String, String>> movieSuggestions = const [
     {
@@ -53,6 +54,12 @@ class AddReviewPageState extends State<AddReviewPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    futureMovies = ApiService.getMovies();
+  }
+
+  @override
   void dispose() {
     titleController.dispose();
     genreController.dispose();
@@ -61,13 +68,31 @@ class AddReviewPageState extends State<AddReviewPage> {
     super.dispose();
   }
 
-  List<Map<String, String>> get filteredSuggestions {
-    final query = titleController.text.trim().toLowerCase();
+  List<Map<String, String>> localSuggestions(String query) {
     if (query.isEmpty) return movieSuggestions.take(3).toList();
 
     return movieSuggestions.where((movie) {
       return movie['title']!.toLowerCase().contains(query);
     }).toList();
+  }
+
+  List<Map<String, String>> filteredMovieSuggestions(List<dynamic> movies) {
+    final query = titleController.text.trim().toLowerCase();
+    final adminMovies = movies.map((movie) {
+      return {
+        'title': (movie['title'] ?? '').toString(),
+        'type': (movie['type'] ?? 'film').toString(),
+        'genre': (movie['genre'] ?? '').toString(),
+        'year': (movie['release_year'] ?? '').toString(),
+      };
+    }).where((movie) {
+      if (movie['title']!.isEmpty) return false;
+      if (query.isEmpty) return true;
+      return movie['title']!.toLowerCase().contains(query);
+    }).toList();
+
+    if (adminMovies.isNotEmpty) return adminMovies.take(5).toList();
+    return localSuggestions(query);
   }
 
   void selectMovieSuggestion(Map<String, String> movie) {
@@ -155,37 +180,42 @@ class AddReviewPageState extends State<AddReviewPage> {
   }
 
   Widget buildMovieSuggestions() {
-    final suggestions = filteredSuggestions;
-    if (suggestions.isEmpty) return const SizedBox.shrink();
+    return FutureBuilder<List<dynamic>>(
+      future: futureMovies,
+      builder: (context, snapshot) {
+        final suggestions = filteredMovieSuggestions(snapshot.data ?? []);
+        if (suggestions.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: suggestions.map((movie) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            tileColor: const Color(0xFF15151F),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            leading: Icon(
-              movie['type'] == 'film' ? Icons.movie : Icons.live_tv,
-              color: Colors.redAccent,
-            ),
-            title: Text(
-              movie['title']!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+        return Column(
+          children: suggestions.map((movie) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                tileColor: const Color(0xFF15151F),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                leading: Icon(
+                  movie['type'] == 'film' ? Icons.movie : Icons.live_tv,
+                  color: Colors.redAccent,
+                ),
+                title: Text(
+                  movie['title']!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  '${movie['genre']} - ${movie['year']}',
+                  style: const TextStyle(color: Colors.white54),
+                ),
+                onTap: () => selectMovieSuggestion(movie),
               ),
-            ),
-            subtitle: Text(
-              '${movie['genre']} - ${movie['year']}',
-              style: const TextStyle(color: Colors.white54),
-            ),
-            onTap: () => selectMovieSuggestion(movie),
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
