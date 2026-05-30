@@ -14,8 +14,9 @@ class AddReviewPageState extends State<AddReviewPage> {
   final genreController = TextEditingController();
   final yearController = TextEditingController();
   final textController = TextEditingController();
-  String selectedType = 'film';
-  double selectedRating = 8;
+  String selectedType = 'film'; // Bawaan default sesuai enum Laravel
+  int selectedRating = 0;
+  String? selectedMovieTitle;
 
   bool _isLoading = false;
   late Future<List<dynamic>> futureMovies;
@@ -107,27 +108,23 @@ class AddReviewPageState extends State<AddReviewPage> {
   void submitData() async {
     if (!formKey.currentState!.validate()) return;
 
-    if (ApiService.currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan login terlebih dahulu.')),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
+    // Bungkus data sesuai format JSON yang diminta oleh ReviewController Laravel
     final reviewData = {
-      "user_id": ApiService.currentUserId,
-      "title": titleController.text.trim(),
+      "user_id": 1, // Sementara hardcode user ID tyo
+      "title": titleController.text,
       "type": selectedType,
-      "genre": genreController.text.trim(),
+      "genre": genreController.text,
       "release_year": int.parse(yearController.text),
-      "rating": selectedRating.round(),
-      "review_text": textController.text.trim(),
+      "rating": selectedRating,
+      "review_text": textController.text,
     };
 
     try {
       final success = await ApiService.addReview(reviewData);
+      if (!mounted) return;
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Review berhasil ditambahkan!')),
@@ -139,6 +136,8 @@ class AddReviewPageState extends State<AddReviewPage> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -179,43 +178,105 @@ class AddReviewPageState extends State<AddReviewPage> {
     );
   }
 
-  Widget buildMovieSuggestions() {
+  Widget buildMoviePicker() {
     return FutureBuilder<List<dynamic>>(
       future: futureMovies,
       builder: (context, snapshot) {
         final suggestions = filteredMovieSuggestions(snapshot.data ?? []);
-        if (suggestions.isEmpty) return const SizedBox.shrink();
 
-        return Column(
-          children: suggestions.map((movie) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                tileColor: const Color(0xFF15151F),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                leading: Icon(
-                  movie['type'] == 'film' ? Icons.movie : Icons.live_tv,
-                  color: Colors.redAccent,
-                ),
-                title: Text(
-                  movie['title']!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  '${movie['genre']} - ${movie['year']}',
-                  style: const TextStyle(color: Colors.white54),
-                ),
-                onTap: () => selectMovieSuggestion(movie),
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.redAccent),
+          );
+        }
+
+        return DropdownButtonFormField<String>(
+          initialValue: selectedMovieTitle,
+          dropdownColor: const Color(0xFF15151F),
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Pilih Film / Drama',
+            labelStyle: const TextStyle(color: Colors.white70),
+            prefixIcon: const Icon(Icons.movie_filter, color: Colors.white54),
+            filled: true,
+            fillColor: const Color(0xFF15151F),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          items: suggestions.map((movie) {
+            final title = movie['title']!;
+            final type = movie['type'] == 'film' ? 'Film' : 'Drama';
+
+            return DropdownMenuItem(
+              value: title,
+              child: Text(
+                '$title - $type',
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Pilih film atau drama dulu';
+            }
+            return null;
+          },
+          onChanged: (value) {
+            if (value == null) return;
+
+            final movie = suggestions.firstWhere(
+              (item) => item['title'] == value,
+            );
+
+            selectedMovieTitle = value;
+            selectMovieSuggestion(movie);
+          },
         );
       },
+    );
+  }
+
+  Widget buildReadonlyInfo() {
+    if (titleController.text.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15151F),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selectedType == 'film' ? Icons.movie : Icons.live_tv,
+            color: Colors.redAccent,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selectedType == 'film' ? 'Film' : 'Drama',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${genreController.text} - ${yearController.text}',
+                  style: const TextStyle(color: Colors.white60),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -234,7 +295,9 @@ class AddReviewPageState extends State<AddReviewPage> {
               const Icon(Icons.star, color: Colors.amber),
               const SizedBox(width: 8),
               Text(
-                'Rating pribadi: ${selectedRating.round()}/10',
+                selectedRating == 0
+                    ? 'Beri rating'
+                    : 'Rating pribadi: $selectedRating/5',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -242,19 +305,26 @@ class AddReviewPageState extends State<AddReviewPage> {
               ),
             ],
           ),
-          Slider(
-            value: selectedRating,
-            min: 1,
-            max: 10,
-            divisions: 9,
-            activeColor: Colors.redAccent,
-            inactiveColor: Colors.white12,
-            label: selectedRating.round().toString(),
-            onChanged: (value) {
-              setState(() {
-                selectedRating = value;
-              });
-            },
+          const SizedBox(height: 12),
+          Row(
+            children: List.generate(5, (index) {
+              final rating = index + 1;
+              final isSelected = rating <= selectedRating;
+
+              return IconButton(
+                tooltip: '$rating dari 5',
+                onPressed: () {
+                  setState(() {
+                    selectedRating = rating;
+                  });
+                },
+                icon: Icon(
+                  isSelected ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 34,
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -277,70 +347,43 @@ class AddReviewPageState extends State<AddReviewPage> {
                 key: formKey,
                 child: ListView(
                   children: [
-                    TextFormField(
-                      controller: titleController,
-                      style: const TextStyle(color: Colors.white),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Cari / ketik judul film atau drama',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.white54,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF15151F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      validator: (v) => v!.isEmpty ? 'Judul tidak boleh kosong' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    buildMovieSuggestions(),
+                    buildMoviePicker(),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedType,
-                      dropdownColor: const Color(0xFF15151F),
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Tipe', labelStyle: TextStyle(color: Colors.white70)),
-                      items: const [
-                        DropdownMenuItem(value: 'film', child: Text('Film')),
-                        DropdownMenuItem(value: 'drama', child: Text('Drama')),
-                      ],
-                      onChanged: (v) => setState(() => selectedType = v!),
-                    ),
+                    buildReadonlyInfo(),
                     const SizedBox(height: 12),
-                    buildInput(
-                      controller: genreController,
-                      label: 'Genre',
-                      icon: Icons.category_outlined,
-                      validator: (v) => v!.isEmpty ? 'Genre tidak boleh kosong' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    buildInput(
-                      controller: yearController,
-                      label: 'Tahun Rilis',
-                      icon: Icons.calendar_today,
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v!.isEmpty) return 'Tahun rilis wajib diisi';
-                        final year = int.tryParse(v);
-                        if (year == null || year < 1900 || year > 2100) {
-                          return 'Masukkan tahun yang valid';
-                        }
+                    FormField<int>(
+                      validator: (_) {
+                        if (selectedRating < 1) return 'Pilih rating 1 sampai 5';
                         return null;
+                      },
+                      builder: (field) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            buildRatingPicker(),
+                            if (field.hasError) ...[
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 12),
+                                child: Text(
+                                  field.errorText!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
                       },
                     ),
                     const SizedBox(height: 12),
-                    buildRatingPicker(),
-                    const SizedBox(height: 12),
-                    buildInput(
+                    TextFormField(
                       controller: textController,
-                      label: 'Komentar / review kamu',
-                      icon: Icons.rate_review_outlined,
+                      style: const TextStyle(color: Colors.white),
                       maxLines: 4,
+                      decoration: const InputDecoration(labelText: 'Isi Ulasan / Review', labelStyle: TextStyle(color: Colors.white70)),
                       validator: (v) => v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
                     ),
                     const SizedBox(height: 24),

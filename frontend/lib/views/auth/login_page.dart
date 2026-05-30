@@ -47,10 +47,7 @@ class _LoginPageState extends State<LoginPage> {
               return const AdminDashboardPage();
             }
 
-            return DashboardPage(
-              userEmail:
-                  ApiService.currentUserEmail ?? _emailController.text.trim(),
-            );
+            return const DashboardPage();
           },
         ),
       );

@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/views/admin/admin_dashboard_page.dart';
-import 'package:frontend/views/home/add_review_page.dart';
 import 'package:frontend/views/auth/login_page.dart';
+import 'package:frontend/views/home/add_review_page.dart';
 import '../../models/review_model.dart';
 import 'widgets/review_card.dart';
 import '../../../services/api_services.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({
-    super.key,
-    required this.userEmail,
-  });
-
-  final String userEmail;
+  const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -123,106 +118,9 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void showDetail(ReviewModel review) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF15151F),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        review.imageUrl,
-                        width: 82,
-                        height: 118,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 82,
-                            height: 118,
-                            color: const Color(0xFF252533),
-                            child: const Icon(
-                              Icons.movie,
-                              color: Colors.white54,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            review.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${review.type} - ${review.genre} - ${review.releaseYear}',
-                            style: const TextStyle(color: Colors.white60),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '${review.rating}/10',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  review.reviewText,
-                  style: const TextStyle(color: Colors.white70, height: 1.45),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.person, color: Colors.redAccent, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Review oleh ${review.reviewerName}',
-                      style: const TextStyle(color: Colors.white60),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Membuka detail: ${review.title}')));
   }
 
   void editReview(ReviewModel review) {
@@ -283,6 +181,8 @@ class _DashboardPageState extends State<DashboardPage> {
         MaterialPageRoute(builder: (context) => const AddReviewPage()),
       );
 
+      if (!mounted) return;
+
       // Jika user sukses menyimpan data baru, refresh FutureBuilder-nya otomatis
       if (isChanged == true) {
         setState(() {
@@ -296,6 +196,9 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Logout berhasil')),
     );
   }
 
@@ -369,9 +272,9 @@ class _DashboardPageState extends State<DashboardPage> {
                         borderRadius: BorderRadius.circular(16),
                         gradient: LinearGradient(
                           colors: [
-                            Colors.black.withOpacity(0.65),
+                            Colors.black.withValues(alpha: 0.65),
                             Colors.transparent,
-                            Colors.black.withOpacity(0.7),
+                            Colors.black.withValues(alpha: 0.7),
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -402,7 +305,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.72),
+                        color: Colors.black.withValues(alpha: 0.72),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -548,7 +451,7 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 14),
 
         DropdownButtonFormField<String>(
-          value: selectedSort,
+          initialValue: selectedSort,
           dropdownColor: const Color(0xFF15151F),
           decoration: InputDecoration(
             filled: true,
@@ -647,7 +550,7 @@ Widget buildHomePage() {
                 rating: double.parse(item['rating'].toString()),
                 reviewText: item['review_text'],
                 reviewerName: item['user'] != null ? item['user']['name'] : 'Anonim',
-                isMine: item['user_id'] == ApiService.currentUserId,
+                isMine: item['user_id'] == 1,
                 imageUrl: 'https://picsum.photos/seed/${item['id']}/300/450',
               );
             }).toList();
@@ -701,7 +604,7 @@ Widget buildMyReviewPage() {
                 rating: double.parse(item['rating'].toString()),
                 reviewText: item['review_text'],
                 reviewerName: item['user'] != null ? item['user']['name'] : 'Anonim',
-                isMine: item['user_id'] == ApiService.currentUserId,
+                isMine: item['user_id'] == 1,
                 imageUrl: 'https://picsum.photos/seed/${item['id']}/300/450',
               );
             }).toList();
@@ -718,8 +621,6 @@ Widget buildMyReviewPage() {
   }
 
   Widget buildProfilePage() {
-    final displayName = widget.userEmail.split('@').first;
-
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -729,46 +630,28 @@ Widget buildMyReviewPage() {
             color: const Color(0xFF15151F),
             borderRadius: BorderRadius.circular(22),
           ),
-          child: Column(
+          child: const Column(
             children: [
               CircleAvatar(
                 radius: 45,
                 backgroundColor: Colors.redAccent,
-                child: Icon(
-                  Icons.person,
-                  size: 50,
-                  color: Colors.white,
-                ),
+                child: Icon(Icons.person, size: 50, color: Colors.white),
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               Text(
-                displayName.isEmpty ? 'Pengguna MovieLog' : displayName,
-                style: const TextStyle(
+                'Andi Pratama',
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
 
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
 
-              Text(
-                widget.userEmail,
-                style: const TextStyle(color: Colors.white60),
-              ),
-              const SizedBox(height: 8),
-              const Chip(
-                backgroundColor: Colors.redAccent,
-                label: Text(
-                  'User',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              Text('andi@email.com', style: TextStyle(color: Colors.white60)),
             ],
           ),
         ),
@@ -863,7 +746,7 @@ Widget buildMyReviewPage() {
 
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF101018),
-        indicatorColor: Colors.redAccent.withOpacity(0.22),
+        indicatorColor: Colors.redAccent.withValues(alpha: 0.22),
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
           setState(() {

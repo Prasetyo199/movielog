@@ -20,7 +20,8 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+            'password' => $data['password'],
+            'role' => 'user',
         ]);
 
         return response()->json([
@@ -28,21 +29,21 @@ class AuthController extends Controller
             'message' => 'Register berhasil',
             'data' => [
                 'user' => $user,
-                'token' => $user->createToken('movielog-mobile')->plainTextToken,
+                'token' => $user->createToken('frontend-token')->plainTextToken,
             ],
         ], 201);
     }
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        $user = User::where('email', $data['email'])->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (!$user || !Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);
@@ -53,7 +54,7 @@ class AuthController extends Controller
             'message' => 'Login berhasil',
             'data' => [
                 'user' => $user,
-                'token' => $user->createToken('movielog-mobile')->plainTextToken,
+                'token' => $user->createToken('frontend-token')->plainTextToken,
             ],
         ]);
     }

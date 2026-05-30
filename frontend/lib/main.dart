@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'views/auth/login_page.dart';
+import 'views/home/dashboard_page.dart';
 
 void main() {
   runApp(const MovieLogApp());
@@ -26,7 +26,7 @@ class MovieLogApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const LoginPage(),
+      home: const DashboardPage(),
     );
   }
 }

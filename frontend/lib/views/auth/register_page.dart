@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_services.dart';
+import 'package:frontend/views/admin/admin_dashboard_page.dart';
 import 'package:frontend/views/home/dashboard_page.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -14,8 +15,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
+
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -42,10 +44,9 @@ class _RegisterPageState extends State<RegisterPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => DashboardPage(
-            userEmail:
-                ApiService.currentUserEmail ?? _emailController.text.trim(),
-          ),
+          builder: (context) => ApiService.isAdmin
+              ? const AdminDashboardPage()
+              : const DashboardPage(),
         ),
       );
     } catch (e) {
@@ -61,17 +62,29 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  InputDecoration _decoration(String label, IconData icon, {Widget? suffix}) {
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.white60),
       prefixIcon: Icon(icon, color: Colors.white54),
-      suffixIcon: suffix,
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: const Color(0xFF15151F),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.white10),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.redAccent),
       ),
     );
   }
@@ -92,25 +105,48 @@ class _RegisterPageState extends State<RegisterPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Icon(
-                      Icons.person_add_alt_1,
+                      Icons.local_movies,
                       color: Colors.redAccent,
-                      size: 54,
+                      size: 58,
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'Buat Akun MovieLog',
+                    RichText(
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
+                      text: const TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Movie',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 32,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Log',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 32,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Buat akun untuk mulai mencatat review film dan drama.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white60, height: 1.4),
+                    ),
+                    const SizedBox(height: 30),
                     TextFormField(
                       controller: _nameController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _decoration('Nama', Icons.person_outline),
+                      decoration: _inputDecoration(
+                        label: 'Nama',
+                        icon: Icons.person_outline,
+                      ),
                       validator: (value) {
                         if ((value ?? '').trim().isEmpty) {
                           return 'Nama wajib diisi';
@@ -123,7 +159,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _decoration('Email', Icons.email_outlined),
+                      decoration: _inputDecoration(
+                        label: 'Email',
+                        icon: Icons.email_outlined,
+                      ),
                       validator: (value) {
                         final email = value?.trim() ?? '';
                         if (email.isEmpty) return 'Email wajib diisi';
@@ -136,10 +175,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       style: const TextStyle(color: Colors.white),
-                      decoration: _decoration(
-                        'Password',
-                        Icons.lock_outline,
-                        suffix: IconButton(
+                      decoration: _inputDecoration(
+                        label: 'Password',
+                        icon: Icons.lock_outline,
+                        suffixIcon: IconButton(
                           onPressed: () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;
@@ -166,6 +205,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         backgroundColor: Colors.redAccent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       onPressed: _isLoading ? null : _register,
                       icon: _isLoading
@@ -177,8 +219,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.person_add),
-                      label: Text(_isLoading ? 'Memproses...' : 'Register'),
+                          : const Icon(Icons.person_add_alt_1),
+                      label: Text(
+                        _isLoading ? 'Memproses...' : 'Register',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Sudah punya akun? Masuk'),
                     ),
                   ],
                 ),
