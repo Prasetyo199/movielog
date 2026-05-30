@@ -79,10 +79,10 @@ class ReviewCard extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.16),
+                            color: Colors.redAccent.withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Colors.redAccent.withOpacity(0.35),
+                              color: Colors.redAccent.withValues(alpha: 0.35),
                             ),
                           ),
                           child: Text(
@@ -116,7 +116,7 @@ class ReviewCard extends StatelessWidget {
                         const Icon(Icons.star, color: Colors.amber, size: 18),
                         const SizedBox(width: 4),
                         Text(
-                          '${review.rating}/10',
+                          '${review.rating}/5',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,

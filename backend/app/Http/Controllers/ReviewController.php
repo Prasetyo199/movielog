@@ -30,7 +30,7 @@ class ReviewController extends Controller
             'type'         => 'required|in:film,drama',
             'genre'        => 'required|string',
             'release_year' => 'required|integer',
-            'rating'       => 'required|integer|between:1,10',
+            'rating'       => 'required|integer|between:1,5',
             'review_text'  => 'required|string',
         ]);
 
@@ -81,7 +81,7 @@ class ReviewController extends Controller
             'type'         => 'sometimes|required|in:film,drama',
             'genre'         => 'sometimes|required|string',
             'release_year' => 'sometimes|required|integer',
-            'rating'       => 'sometimes|required|integer|between:1,10',
+            'rating'       => 'sometimes|required|integer|between:1,5',
             'review_text'  => 'sometimes|required|string',
         ]);
 

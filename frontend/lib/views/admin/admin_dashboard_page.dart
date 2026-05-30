@@ -131,7 +131,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 icon: Icons.star,
                 title: review['title'] ?? '-',
                 subtitle:
-                    '${review['user']?['name'] ?? 'Anonim'} - Rating ${review['rating']}/10',
+                    '${review['user']?['name'] ?? 'Anonim'} - Rating ${review['rating']}/5',
               );
             }),
           ],
@@ -206,7 +206,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     sheetInput(titleController, 'Judul', Icons.movie),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       dropdownColor: const Color(0xFF15151F),
                       style: const TextStyle(color: Colors.white),
                       decoration: sheetDecoration('Jenis', Icons.category),
@@ -258,12 +258,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           'description': descriptionController.text.trim(),
                         });
 
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         Navigator.pop(context);
 
+                        if (!mounted) return;
                         if (success) {
                           setState(refreshData);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(this.context).showSnackBar(
                             const SnackBar(content: Text('Movie ditambahkan')),
                           );
                         }
@@ -423,7 +424,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               icon: Icons.rate_review,
               title: review['title'] ?? '-',
               subtitle:
-                  '${review['user']?['name'] ?? 'Anonim'} - ${review['type']} - Rating ${review['rating']}/10',
+                  '${review['user']?['name'] ?? 'Anonim'} - ${review['type']} - Rating ${review['rating']}/5',
             );
           }).toList(),
         );
@@ -440,7 +441,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF15151F),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.redAccent.withOpacity(0.35)),
+            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
           ),
           child: Column(
             children: [
@@ -538,7 +539,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       body: buildPage(),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF101018),
-        indicatorColor: Colors.redAccent.withOpacity(0.22),
+        indicatorColor: Colors.redAccent.withValues(alpha: 0.22),
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
           setState(() => selectedIndex = index);
