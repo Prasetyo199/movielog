@@ -13,26 +13,92 @@ class AddReviewPageState extends State<AddReviewPage> {
   final titleController = TextEditingController();
   final genreController = TextEditingController();
   final yearController = TextEditingController();
-  final ratingController = TextEditingController();
   final textController = TextEditingController();
-  String selectedType = 'film'; // Bawaan default sesuai enum Laravel
+  String selectedType = 'film';
+  double selectedRating = 8;
 
   bool _isLoading = false;
+
+  final List<Map<String, String>> movieSuggestions = const [
+    {
+      'title': 'Interstellar',
+      'type': 'film',
+      'genre': 'Sci-Fi, Adventure',
+      'year': '2014',
+    },
+    {
+      'title': 'Parasite',
+      'type': 'film',
+      'genre': 'Thriller, Drama',
+      'year': '2019',
+    },
+    {
+      'title': 'The Dark Knight',
+      'type': 'film',
+      'genre': 'Action, Crime',
+      'year': '2008',
+    },
+    {
+      'title': 'Reply 1988',
+      'type': 'drama',
+      'genre': 'Slice of Life, Comedy',
+      'year': '2015',
+    },
+    {
+      'title': 'Queen of Tears',
+      'type': 'drama',
+      'genre': 'Romance, Drama',
+      'year': '2024',
+    },
+  ];
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    genreController.dispose();
+    yearController.dispose();
+    textController.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, String>> get filteredSuggestions {
+    final query = titleController.text.trim().toLowerCase();
+    if (query.isEmpty) return movieSuggestions.take(3).toList();
+
+    return movieSuggestions.where((movie) {
+      return movie['title']!.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  void selectMovieSuggestion(Map<String, String> movie) {
+    setState(() {
+      titleController.text = movie['title']!;
+      selectedType = movie['type']!;
+      genreController.text = movie['genre']!;
+      yearController.text = movie['year']!;
+    });
+  }
 
   void submitData() async {
     if (!formKey.currentState!.validate()) return;
 
+    if (ApiService.currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan login terlebih dahulu.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    // Bungkus data sesuai format JSON yang diminta oleh ReviewController Laravel
     final reviewData = {
-      "user_id": 1, // Sementara hardcode user ID tyo
-      "title": titleController.text,
+      "user_id": ApiService.currentUserId,
+      "title": titleController.text.trim(),
       "type": selectedType,
-      "genre": genreController.text,
+      "genre": genreController.text.trim(),
       "release_year": int.parse(yearController.text),
-      "rating": int.parse(ratingController.text),
-      "review_text": textController.text,
+      "rating": selectedRating.round(),
+      "review_text": textController.text.trim(),
     };
 
     try {
@@ -52,8 +118,117 @@ class AddReviewPageState extends State<AddReviewPage> {
         SnackBar(content: Text('Error: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  Widget buildInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: const TextStyle(color: Colors.white),
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xFF15151F),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget buildMovieSuggestions() {
+    final suggestions = filteredSuggestions;
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: suggestions.map((movie) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            tileColor: const Color(0xFF15151F),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            leading: Icon(
+              movie['type'] == 'film' ? Icons.movie : Icons.live_tv,
+              color: Colors.redAccent,
+            ),
+            title: Text(
+              movie['title']!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              '${movie['genre']} - ${movie['year']}',
+              style: const TextStyle(color: Colors.white54),
+            ),
+            onTap: () => selectMovieSuggestion(movie),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget buildRatingPicker() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15151F),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.star, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                'Rating pribadi: ${selectedRating.round()}/10',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: selectedRating,
+            min: 1,
+            max: 10,
+            divisions: 9,
+            activeColor: Colors.redAccent,
+            inactiveColor: Colors.white12,
+            label: selectedRating.round().toString(),
+            onChanged: (value) {
+              setState(() {
+                selectedRating = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -75,9 +250,25 @@ class AddReviewPageState extends State<AddReviewPage> {
                     TextFormField(
                       controller: titleController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Judul Film / Drama', labelStyle: TextStyle(color: Colors.white70)),
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: 'Cari / ketik judul film atau drama',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.white54,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF15151F),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                       validator: (v) => v!.isEmpty ? 'Judul tidak boleh kosong' : null,
                     ),
+                    const SizedBox(height: 10),
+                    buildMovieSuggestions(),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: selectedType,
@@ -91,39 +282,35 @@ class AddReviewPageState extends State<AddReviewPage> {
                       onChanged: (v) => setState(() => selectedType = v!),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    buildInput(
                       controller: genreController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Genre', labelStyle: TextStyle(color: Colors.white70)),
+                      label: 'Genre',
+                      icon: Icons.category_outlined,
                       validator: (v) => v!.isEmpty ? 'Genre tidak boleh kosong' : null,
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    buildInput(
                       controller: yearController,
-                      style: const TextStyle(color: Colors.white),
+                      label: 'Tahun Rilis',
+                      icon: Icons.calendar_today,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Tahun Rilis', labelStyle: TextStyle(color: Colors.white70)),
-                      validator: (v) => v!.isEmpty ? 'Tahun rilis wajib diisi' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: ratingController,
-                      style: const TextStyle(color: Colors.white),
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Rating (1-10)', labelStyle: TextStyle(color: Colors.white70)),
                       validator: (v) {
-                        if (v!.isEmpty) return 'Rating wajib diisi';
-                        final r = int.tryParse(v);
-                        if (r == null || r < 1 || r > 10) return 'Masukkan angka 1 sampai 10';
+                        if (v!.isEmpty) return 'Tahun rilis wajib diisi';
+                        final year = int.tryParse(v);
+                        if (year == null || year < 1900 || year > 2100) {
+                          return 'Masukkan tahun yang valid';
+                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    buildRatingPicker(),
+                    const SizedBox(height: 12),
+                    buildInput(
                       controller: textController,
-                      style: const TextStyle(color: Colors.white),
+                      label: 'Komentar / review kamu',
+                      icon: Icons.rate_review_outlined,
                       maxLines: 4,
-                      decoration: const InputDecoration(labelText: 'Isi Ulasan / Review', labelStyle: TextStyle(color: Colors.white70)),
                       validator: (v) => v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
                     ),
                     const SizedBox(height: 24),
