@@ -1,8 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000/api';
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+  static String get baseUrl {
+    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api';
+    }
+    return 'http://localhost:8000/api';
+  }
+
   static String? authToken;
   static int? currentUserId;
   static String? currentUserName;
@@ -373,7 +384,11 @@ class ApiService {
   static String? normalizeMediaUrl(dynamic value) {
     final url = value?.toString();
     if (url == null || url.isEmpty) return null;
-    return url.replaceFirst('http://127.0.0.1:8000', 'http://localhost:8000');
+    final apiUri = Uri.parse(baseUrl);
+    final mediaHost = '${apiUri.scheme}://${apiUri.host}:${apiUri.port}';
+    return url
+        .replaceFirst('http://127.0.0.1:8000', mediaHost)
+        .replaceFirst('http://localhost:8000', mediaHost);
   }
 
   static Map<String, String> get multipartHeaders {

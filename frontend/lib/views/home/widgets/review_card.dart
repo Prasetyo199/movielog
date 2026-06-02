@@ -18,6 +18,12 @@ class ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratingText = review.rating.toStringAsFixed(1);
+    final posterPlaceholder = Container(
+      width: 90,
+      height: 130,
+      color: const Color(0xFF252533),
+      child: const Icon(Icons.movie, size: 38, color: Colors.white54),
+    );
 
     return Card(
       color: const Color(0xFF15151F),
@@ -34,24 +40,17 @@ class ReviewCard extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  review.imageUrl,
-                  width: 90,
-                  height: 130,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 90,
-                      height: 130,
-                      color: const Color(0xFF252533),
-                      child: const Icon(
-                        Icons.movie,
-                        size: 38,
-                        color: Colors.white54,
+                child: review.imageUrl.isEmpty
+                    ? posterPlaceholder
+                    : Image.network(
+                        review.imageUrl,
+                        width: 90,
+                        height: 130,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return posterPlaceholder;
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
 
               const SizedBox(width: 12),

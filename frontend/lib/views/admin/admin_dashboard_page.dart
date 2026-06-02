@@ -906,6 +906,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final compactAppBar = MediaQuery.sizeOf(context).width < 380;
+
     return Scaffold(
       backgroundColor: const Color(0xFF09090D),
       appBar: AppBar(
@@ -913,25 +915,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         automaticallyImplyLeading: false,
         title: const Text('Admin Console'),
         actions: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Chip(
-              backgroundColor: Colors.redAccent,
-              label: Text(
-                'ADMIN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          if (!compactAppBar)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Chip(
+                backgroundColor: Colors.redAccent,
+                label: Text(
+                  'ADMIN',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
-          TextButton.icon(
-            onPressed: logout,
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text('Keluar'),
-          ),
+          if (compactAppBar)
+            IconButton(
+              tooltip: 'Keluar',
+              onPressed: logout,
+              icon: const Icon(Icons.logout, color: Colors.redAccent),
+            )
+          else
+            TextButton.icon(
+              onPressed: logout,
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Keluar'),
+            ),
         ],
       ),
       body: buildPage(),

@@ -79,9 +79,7 @@ class _DashboardPageState extends State<DashboardPage> {
       reviewText: item['review_text'] ?? '-',
       reviewerName: item['user'] != null ? item['user']['name'] : 'Anonim',
       isMine: item['user_id'] == ApiService.currentUserId,
-      imageUrl: ApiService.normalizeMediaUrl(item['poster_url']) != null
-          ? ApiService.normalizeMediaUrl(item['poster_url'])!
-          : 'https://picsum.photos/seed/${item['id']}/300/450',
+      imageUrl: ApiService.normalizeMediaUrl(item['poster_url']) ?? '',
     );
   }
 
@@ -141,6 +139,48 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   String ratingLabel(num rating) => rating.toStringAsFixed(1);
+
+  Widget movieImagePlaceholder({
+    required double width,
+    required double height,
+    double iconSize = 40,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      color: const Color(0xFF252533),
+      child: Icon(Icons.movie, color: Colors.white54, size: iconSize),
+    );
+  }
+
+  Widget movieNetworkImage({
+    required String imageUrl,
+    required double width,
+    required double height,
+    double iconSize = 40,
+  }) {
+    if (imageUrl.isEmpty) {
+      return movieImagePlaceholder(
+        width: width,
+        height: height,
+        iconSize: iconSize,
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return movieImagePlaceholder(
+          width: width,
+          height: height,
+          iconSize: iconSize,
+        );
+      },
+    );
+  }
 
   List<ReviewModel> getProcessedReviews({bool onlyMine = false}) {
     var reviews = [...currentReviews];
@@ -294,22 +334,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: Image.network(
-                        review.imageUrl,
+                      child: movieNetworkImage(
+                        imageUrl: review.imageUrl,
                         width: 105,
                         height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 105,
-                            height: 150,
-                            color: const Color(0xFF252533),
-                            child: const Icon(
-                              Icons.movie,
-                              color: Colors.white54,
-                            ),
-                          );
-                        },
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -711,20 +739,10 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  review.imageUrl,
+                child: movieNetworkImage(
+                  imageUrl: review.imageUrl,
                   width: 125,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: const Color(0xFF252533),
-                      child: const Icon(
-                        Icons.movie,
-                        color: Colors.white54,
-                        size: 40,
-                      ),
-                    );
-                  },
+                  height: 170,
                 ),
               ),
             ),
@@ -810,28 +828,42 @@ class _DashboardPageState extends State<DashboardPage> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: selectedFilter,
+                isExpanded: true,
                 dropdownColor: const Color(0xFF15151F),
                 decoration: filterDecoration(Icons.filter_list),
                 items: filterOptions
                     .map(
-                      (filter) =>
-                          DropdownMenuItem(value: filter, child: Text(filter)),
+                      (filter) => DropdownMenuItem(
+                        value: filter,
+                        child: Text(
+                          filter,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     )
                     .toList(),
                 onChanged: (value) =>
                     setState(() => selectedFilter = value ?? 'Semua'),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: selectedSort,
+                isExpanded: true,
                 dropdownColor: const Color(0xFF15151F),
                 decoration: filterDecoration(Icons.sort),
                 items: sortOptions
                     .map(
-                      (sort) =>
-                          DropdownMenuItem(value: sort, child: Text(sort)),
+                      (sort) => DropdownMenuItem(
+                        value: sort,
+                        child: Text(
+                          sort,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     )
                     .toList(),
                 onChanged: (value) =>
@@ -1409,11 +1441,18 @@ class _DashboardPageState extends State<DashboardPage> {
         title: buildAppBarTitle(),
         actions: [
           if (ApiService.isLoggedIn)
-            TextButton.icon(
-              onPressed: logout,
-              icon: const Icon(Icons.logout, size: 18),
-              label: const Text('Keluar'),
-            )
+            if (MediaQuery.sizeOf(context).width < 380)
+              IconButton(
+                tooltip: 'Keluar',
+                onPressed: logout,
+                icon: const Icon(Icons.logout, color: Colors.redAccent),
+              )
+            else
+              TextButton.icon(
+                onPressed: logout,
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Keluar'),
+              )
           else
             TextButton.icon(
               onPressed: goToRegister,

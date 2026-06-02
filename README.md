@@ -132,6 +132,27 @@ Konfigurasi API berada di:
 frontend/lib/services/api_services.dart
 ```
 
+Secara default aplikasi otomatis memakai:
+
+```text
+Windows/Chrome : http://localhost:8000/api
+Android emulator: http://10.0.2.2:8000/api
+```
+
+Untuk HP Android fisik, jalankan backend dengan:
+
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+Lalu jalankan Flutter dengan IP laptop:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
+```
+
+Ganti `192.168.1.10` dengan IP laptop dari `ipconfig`.
+
 ## Akun Default
 
 Seeder menyediakan akun contoh:

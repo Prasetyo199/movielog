@@ -17,6 +17,17 @@ Base URL API dapat diubah di:
 lib/services/api_services.dart
 ```
 
+Default API:
+
+- Windows/Chrome: `http://localhost:8000/api`
+- Android emulator: `http://10.0.2.2:8000/api`
+
+Untuk HP fisik:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://IP-LAPTOP:8000/api
+```
+
 ## Fitur Frontend
 
 - Login dan register.
