@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('reviews_tabel', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); 
-            $table->string('title');                  // Judul film/drama
-            $table->enum('type', ['film', 'drama']);   // Jenis: film atau drama
+            $table->string('title');                  // Judul film/series
+            $table->enum('type', ['film', 'series']);  // Jenis: film atau series
             $table->string('genre');                  // Genre film
             $table->integer('release_year');           // Tahun rilis
             $table->integer('rating');                 // Rating pribadi (misal skala 1-5 atau 1-10)

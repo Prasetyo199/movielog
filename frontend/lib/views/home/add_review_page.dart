@@ -10,48 +10,39 @@ class AddReviewPage extends StatefulWidget {
 
 class AddReviewPageState extends State<AddReviewPage> {
   final formKey = GlobalKey<FormState>();
+  final searchMovieController = TextEditingController();
   final titleController = TextEditingController();
   final genreController = TextEditingController();
   final yearController = TextEditingController();
   final textController = TextEditingController();
-  String selectedType = 'film'; // Bawaan default sesuai enum Laravel
+  String selectedType = 'film';
   int selectedRating = 0;
   String? selectedMovieTitle;
+  String? selectedMovieKey;
+  final Set<String> selectedGenres = {};
 
   bool _isLoading = false;
   late Future<List<dynamic>> futureMovies;
 
-  final List<Map<String, String>> movieSuggestions = const [
-    {
-      'title': 'Interstellar',
-      'type': 'film',
-      'genre': 'Sci-Fi, Adventure',
-      'year': '2014',
-    },
-    {
-      'title': 'Parasite',
-      'type': 'film',
-      'genre': 'Thriller, Drama',
-      'year': '2019',
-    },
-    {
-      'title': 'The Dark Knight',
-      'type': 'film',
-      'genre': 'Action, Crime',
-      'year': '2008',
-    },
-    {
-      'title': 'Reply 1988',
-      'type': 'drama',
-      'genre': 'Slice of Life, Comedy',
-      'year': '2015',
-    },
-    {
-      'title': 'Queen of Tears',
-      'type': 'drama',
-      'genre': 'Romance, Drama',
-      'year': '2024',
-    },
+  final List<String> genreOptions = const [
+    'Action',
+    'Adventure',
+    'Animation',
+    'Biography',
+    'Comedy',
+    'Crime',
+    'Drama',
+    'Family',
+    'Fantasy',
+    'Historical',
+    'Horror',
+    'Medical',
+    'Mystery',
+    'Romance',
+    'Sci-Fi',
+    'Slice of Life',
+    'Thriller',
+    'War',
   ];
 
   @override
@@ -62,6 +53,7 @@ class AddReviewPageState extends State<AddReviewPage> {
 
   @override
   void dispose() {
+    searchMovieController.dispose();
     titleController.dispose();
     genreController.dispose();
     yearController.dispose();
@@ -69,53 +61,79 @@ class AddReviewPageState extends State<AddReviewPage> {
     super.dispose();
   }
 
-  List<Map<String, String>> localSuggestions(String query) {
-    if (query.isEmpty) return movieSuggestions.take(3).toList();
-
-    return movieSuggestions.where((movie) {
-      return movie['title']!.toLowerCase().contains(query);
-    }).toList();
-  }
-
   List<Map<String, String>> filteredMovieSuggestions(List<dynamic> movies) {
-    final query = titleController.text.trim().toLowerCase();
-    final adminMovies = movies.map((movie) {
-      return {
-        'title': (movie['title'] ?? '').toString(),
-        'type': (movie['type'] ?? 'film').toString(),
-        'genre': (movie['genre'] ?? '').toString(),
-        'year': (movie['release_year'] ?? '').toString(),
-      };
-    }).where((movie) {
-      if (movie['title']!.isEmpty) return false;
-      if (query.isEmpty) return true;
-      return movie['title']!.toLowerCase().contains(query);
-    }).toList();
+    final query = searchMovieController.text.trim().toLowerCase();
+    final adminMovies = movies
+        .map((movie) {
+          return {
+            'title': (movie['title'] ?? '').toString(),
+            'type': normalizeType((movie['type'] ?? 'film').toString()),
+            'genre': (movie['genre'] ?? '').toString(),
+            'year': (movie['release_year'] ?? '').toString(),
+            'key': 'admin-${movie['id'] ?? movie['title']}',
+          };
+        })
+        .where((movie) {
+          if (movie['title']!.isEmpty) return false;
+          if (query.isEmpty) return true;
+          return movie['title']!.toLowerCase().contains(query);
+        })
+        .toList();
 
-    if (adminMovies.isNotEmpty) return adminMovies.take(5).toList();
-    return localSuggestions(query);
+    return adminMovies.take(20).toList();
   }
 
   void selectMovieSuggestion(Map<String, String> movie) {
     setState(() {
+      searchMovieController.text = movie['title']!;
       titleController.text = movie['title']!;
-      selectedType = movie['type']!;
+      selectedMovieTitle = movie['title'];
+      selectedMovieKey = movie['key'];
+      selectedType = normalizeType(movie['type']!);
       genreController.text = movie['genre']!;
       yearController.text = movie['year']!;
+      selectedGenres
+        ..clear()
+        ..addAll(
+          movie['genre']!
+              .split(',')
+              .map((genre) => genre.trim())
+              .where((genre) => genre.isNotEmpty),
+        );
     });
+  }
+
+  String normalizeType(String type) {
+    return type == 'drama' ? 'series' : type;
+  }
+
+  String typeLabel(String type) {
+    return type == 'film' ? 'Film' : 'Series';
+  }
+
+  void syncGenreController() {
+    genreController.text = selectedGenres.join(', ');
   }
 
   void submitData() async {
     if (!formKey.currentState!.validate()) return;
+    if (ApiService.currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan login dulu untuk membuat review.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     // Bungkus data sesuai format JSON yang diminta oleh ReviewController Laravel
     final reviewData = {
-      "user_id": 1, // Sementara hardcode user ID tyo
+      "user_id": ApiService.currentUserId,
       "title": titleController.text,
       "type": selectedType,
-      "genre": genreController.text,
+      "genre": selectedGenres.join(', '),
       "release_year": int.parse(yearController.text),
       "rating": selectedRating,
       "review_text": textController.text,
@@ -129,7 +147,10 @@ class AddReviewPageState extends State<AddReviewPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Review berhasil ditambahkan!')),
         );
-        Navigator.pop(context, true); // Kembali ke dashboard dengan sinyal sukses
+        Navigator.pop(
+          context,
+          true,
+        ); // Kembali ke dashboard dengan sinyal sukses
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menambahkan review.')),
@@ -138,14 +159,129 @@ class AddReviewPageState extends State<AddReviewPage> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Widget buildTypePicker() {
+    return DropdownButtonFormField<String>(
+      initialValue: selectedType,
+      dropdownColor: const Color(0xFF15151F),
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Jenis Tontonan',
+        hintStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: const Icon(Icons.category, color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xFF15151F),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'film', child: Text('Film')),
+        DropdownMenuItem(value: 'series', child: Text('Series')),
+      ],
+      onChanged: (value) {
+        if (value == null) return;
+        setState(() => selectedType = value);
+      },
+    );
+  }
+
+  Widget buildGenrePicker() {
+    return FormField<Set<String>>(
+      validator: (_) {
+        if (selectedGenres.isEmpty) {
+          return 'Pilih minimal satu genre';
+        }
+        return null;
+      },
+      builder: (field) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF15151F),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.local_offer, color: Colors.white54),
+                  SizedBox(width: 8),
+                  Text(
+                    'Pilih Genre',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: genreOptions.map((genre) {
+                  final selected = selectedGenres.contains(genre);
+                  return FilterChip(
+                    label: Text(genre),
+                    selected: selected,
+                    showCheckmark: false,
+                    selectedColor: Colors.redAccent,
+                    backgroundColor: const Color(0xFF09090D),
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : Colors.white70,
+                    ),
+                    onSelected: (value) {
+                      setState(() {
+                        if (value) {
+                          selectedGenres.add(genre);
+                        } else {
+                          selectedGenres.remove(genre);
+                        }
+                        syncGenreController();
+                        field.didChange(selectedGenres);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              if (selectedGenres.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Genre dipilih: ${selectedGenres.join(', ')}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+              if (field.hasError) ...[
+                const SizedBox(height: 8),
+                Text(
+                  field.errorText!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget buildInput({
@@ -189,17 +325,44 @@ class AddReviewPageState extends State<AddReviewPage> {
             child: CircularProgressIndicator(color: Colors.redAccent),
           );
         }
+        if (snapshot.hasError) {
+          return Text(
+            'Gagal memuat katalog admin: ${snapshot.error}',
+            style: const TextStyle(color: Colors.white70),
+          );
+        }
+
+        if (suggestions.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF15151F),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Katalog admin kosong atau judul tidak ditemukan.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          );
+        }
 
         return DropdownButtonFormField<String>(
-          initialValue: selectedMovieTitle,
+          initialValue:
+              suggestions.any((movie) => movie['key'] == selectedMovieKey)
+              ? selectedMovieKey
+              : null,
           dropdownColor: const Color(0xFF15151F),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            labelText: 'Pilih Film / Drama',
-            labelStyle: const TextStyle(color: Colors.white70),
+            hintText: 'Pilih Film / Series',
+            hintStyle: const TextStyle(color: Colors.white70),
             prefixIcon: const Icon(Icons.movie_filter, color: Colors.white54),
             filled: true,
             fillColor: const Color(0xFF15151F),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,
@@ -207,19 +370,16 @@ class AddReviewPageState extends State<AddReviewPage> {
           ),
           items: suggestions.map((movie) {
             final title = movie['title']!;
-            final type = movie['type'] == 'film' ? 'Film' : 'Drama';
+            final type = typeLabel(movie['type']!);
 
             return DropdownMenuItem(
-              value: title,
-              child: Text(
-                '$title - $type',
-                overflow: TextOverflow.ellipsis,
-              ),
+              value: movie['key'],
+              child: Text('$title - $type', overflow: TextOverflow.ellipsis),
             );
           }).toList(),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'Pilih film atau drama dulu';
+              return 'Pilih film atau series dulu';
             }
             return null;
           },
@@ -227,13 +387,60 @@ class AddReviewPageState extends State<AddReviewPage> {
             if (value == null) return;
 
             final movie = suggestions.firstWhere(
-              (item) => item['title'] == value,
+              (item) => item['key'] == value,
             );
 
-            selectedMovieTitle = value;
             selectMovieSuggestion(movie);
           },
         );
+      },
+    );
+  }
+
+  Widget buildMovieSearch() {
+    return TextFormField(
+      controller: searchMovieController,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Cari dari katalog admin...',
+        hintStyle: const TextStyle(color: Colors.white38),
+        prefixIcon: const Icon(Icons.search, color: Colors.white54),
+        suffixIcon: searchMovieController.text.isEmpty
+            ? null
+            : IconButton(
+                onPressed: () {
+                  setState(() {
+                    searchMovieController.clear();
+                    selectedMovieKey = null;
+                    selectedMovieTitle = null;
+                    titleController.clear();
+                    genreController.clear();
+                    yearController.clear();
+                    selectedGenres.clear();
+                  });
+                },
+                icon: const Icon(Icons.close, color: Colors.white54),
+              ),
+        filled: true,
+        fillColor: const Color(0xFF15151F),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onChanged: (_) {
+        setState(() {
+          selectedMovieKey = null;
+          selectedMovieTitle = null;
+          titleController.clear();
+          genreController.clear();
+          yearController.clear();
+          selectedGenres.clear();
+        });
       },
     );
   }
@@ -261,7 +468,7 @@ class AddReviewPageState extends State<AddReviewPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  selectedType == 'film' ? 'Film' : 'Drama',
+                  typeLabel(selectedType),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -340,20 +547,30 @@ class AddReviewPageState extends State<AddReviewPage> {
         backgroundColor: const Color(0xFF09090D),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.redAccent),
+            )
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: formKey,
                 child: ListView(
                   children: [
+                    buildMovieSearch(),
+                    const SizedBox(height: 12),
                     buildMoviePicker(),
+                    const SizedBox(height: 12),
+                    buildTypePicker(),
+                    const SizedBox(height: 12),
+                    buildGenrePicker(),
                     const SizedBox(height: 12),
                     buildReadonlyInfo(),
                     const SizedBox(height: 12),
                     FormField<int>(
                       validator: (_) {
-                        if (selectedRating < 1) return 'Pilih rating 1 sampai 5';
+                        if (selectedRating < 1) {
+                          return 'Pilih rating 1 sampai 5';
+                        }
                         return null;
                       },
                       builder: (field) {
@@ -383,14 +600,24 @@ class AddReviewPageState extends State<AddReviewPage> {
                       controller: textController,
                       style: const TextStyle(color: Colors.white),
                       maxLines: 4,
-                      decoration: const InputDecoration(labelText: 'Isi Ulasan / Review', labelStyle: TextStyle(color: Colors.white70)),
-                      validator: (v) => v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Isi Ulasan / Review',
+                        labelStyle: TextStyle(color: Colors.white70),
+                      ),
+                      validator: (v) =>
+                          v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                       onPressed: submitData,
-                      child: const Text('Simpan Review', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      child: const Text(
+                        'Simpan Review',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
                     ),
                   ],
                 ),

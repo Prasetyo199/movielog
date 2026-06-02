@@ -1,6 +1,9 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_services.dart';
-import 'package:frontend/views/auth/login_page.dart';
+import 'package:frontend/views/home/dashboard_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -14,6 +17,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   late Future<List<dynamic>> futureMovies;
   late Future<List<dynamic>> futureUsers;
   late Future<List<dynamic>> futureReviews;
+  final List<String> genreOptions = const [
+    'Action',
+    'Adventure',
+    'Animation',
+    'Biography',
+    'Comedy',
+    'Crime',
+    'Drama',
+    'Family',
+    'Fantasy',
+    'Historical',
+    'Horror',
+    'Medical',
+    'Mystery',
+    'Romance',
+    'Sci-Fi',
+    'Slice of Life',
+    'Thriller',
+    'War',
+  ];
 
   @override
   void initState() {
@@ -31,7 +54,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     ApiService.logout();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
+      MaterialPageRoute(builder: (context) => const DashboardPage()),
     );
   }
 
@@ -66,9 +89,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget buildOverview() {
     return FutureBuilder<List<dynamic>>(
-      future: Future.wait([futureMovies, futureUsers, futureReviews]).then(
-        (values) => values,
-      ),
+      future: Future.wait([
+        futureMovies,
+        futureUsers,
+        futureReviews,
+      ]).then((values) => values),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -101,7 +126,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 const SizedBox(width: 10),
                 statCard('User', regularUsers.toString(), Icons.people),
                 const SizedBox(width: 10),
-                statCard('Admin', admins.toString(), Icons.admin_panel_settings),
+                statCard(
+                  'Admin',
+                  admins.toString(),
+                  Icons.admin_panel_settings,
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -109,11 +138,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               children: [
                 statCard('Review', reviews.length.toString(), Icons.reviews),
                 const SizedBox(width: 10),
-                statCard(
-                  'Login Sebagai',
-                  'Admin',
-                  Icons.verified_user,
-                ),
+                statCard('Login Sebagai', 'Admin', Icons.verified_user),
               ],
             ),
             const SizedBox(height: 22),
@@ -166,11 +191,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   void showAddMovieSheet() {
     final titleController = TextEditingController();
-    final genreController = TextEditingController();
-    final yearController = TextEditingController();
-    final posterController = TextEditingController();
     final descriptionController = TextEditingController();
     String selectedType = 'film';
+    String? selectedPosterPath;
+    String? selectedGenre;
+    int selectedYear = DateTime.now().year;
 
     showModalBottomSheet(
       context: context,
@@ -194,13 +219,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Tambah Movie',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Tambah Movie',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Tutup',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 14),
                     sheetInput(titleController, 'Judul', Icons.movie),
@@ -212,7 +248,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       decoration: sheetDecoration('Jenis', Icons.category),
                       items: const [
                         DropdownMenuItem(value: 'film', child: Text('Film')),
-                        DropdownMenuItem(value: 'drama', child: Text('Drama')),
+                        DropdownMenuItem(
+                          value: 'series',
+                          child: Text('Series'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value == null) return;
@@ -220,20 +259,92 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       },
                     ),
                     const SizedBox(height: 10),
-                    sheetInput(genreController, 'Genre', Icons.local_offer),
-                    const SizedBox(height: 10),
-                    sheetInput(
-                      yearController,
-                      'Tahun Rilis',
-                      Icons.calendar_today,
-                      keyboardType: TextInputType.number,
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedGenre,
+                      dropdownColor: const Color(0xFF15151F),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: sheetDecoration('Genre', Icons.local_offer),
+                      items: genreOptions
+                          .map(
+                            (genre) => DropdownMenuItem(
+                              value: genre,
+                              child: Text(genre),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setSheetState(() => selectedGenre = value);
+                      },
                     ),
                     const SizedBox(height: 10),
-                    sheetInput(
-                      posterController,
-                      'URL Poster',
-                      Icons.image_outlined,
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDialog<int>(
+                          context: context,
+                          builder: (dialogContext) {
+                            var dialogYear = selectedYear;
+                            return AlertDialog(
+                              backgroundColor: const Color(0xFF15151F),
+                              title: const Text(
+                                'Pilih Tahun Rilis',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              content: SizedBox(
+                                width: 280,
+                                child: YearPicker(
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime(now.year + 2),
+                                  selectedDate: DateTime(dialogYear),
+                                  onChanged: (date) {
+                                    dialogYear = date.year;
+                                    Navigator.pop(dialogContext, dialogYear);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                        if (picked == null) return;
+                        setSheetState(() => selectedYear = picked);
+                      },
+                      icon: const Icon(Icons.calendar_today),
+                      label: Text('Tahun Rilis: $selectedYear'),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.image,
+                          allowMultiple: false,
+                        );
+                        final path = result?.files.single.path;
+                        if (path == null) return;
+                        setSheetState(() => selectedPosterPath = path);
+                      },
+                      icon: const Icon(Icons.upload_file),
+                      label: Text(
+                        selectedPosterPath == null
+                            ? 'Pilih Poster'
+                            : 'Ganti Poster',
+                      ),
+                    ),
+                    if (selectedPosterPath != null) ...[
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(selectedPosterPath!),
+                          height: 150,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     sheetInput(
                       descriptionController,
@@ -249,24 +360,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () async {
-                        final success = await ApiService.addMovie({
-                          'title': titleController.text.trim(),
-                          'type': selectedType,
-                          'genre': genreController.text.trim(),
-                          'release_year': int.tryParse(yearController.text) ?? 0,
-                          'poster_url': posterController.text.trim(),
-                          'description': descriptionController.text.trim(),
-                        });
+                        try {
+                          if (titleController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Judul tidak boleh kosong'),
+                              ),
+                            );
+                            return;
+                          }
+                          if (selectedGenre == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Pilih genre dulu')),
+                            );
+                            return;
+                          }
 
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
+                          final success = await ApiService.addMovie({
+                            'title': titleController.text.trim(),
+                            'type': selectedType,
+                            'genre': selectedGenre,
+                            'release_year': selectedYear,
+                            'description': descriptionController.text.trim(),
+                          }, posterPath: selectedPosterPath);
 
-                        if (!mounted) return;
-                        if (success) {
-                          setState(refreshData);
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            const SnackBar(content: Text('Movie ditambahkan')),
-                          );
+                          if (!context.mounted) return;
+                          Navigator.pop(context);
+
+                          if (!mounted) return;
+                          if (success) {
+                            setState(refreshData);
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Movie ditambahkan'),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(e.toString())));
                         }
                       },
                       icon: const Icon(Icons.save),
@@ -284,11 +418,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   InputDecoration sheetDecoration(String label, IconData icon) {
     return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white60),
+      hintText: label,
+      hintStyle: const TextStyle(color: Colors.white60),
       prefixIcon: Icon(icon, color: Colors.white54),
       filled: true,
       fillColor: const Color(0xFF09090D),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -377,26 +512,49 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           padding: const EdgeInsets.all(16),
           children: users.map((user) {
             final isCurrentUser = user['id'] == ApiService.currentUserId;
+            final isActive = user['is_active'] != false;
 
             return adminTile(
               icon: user['role'] == 'admin'
                   ? Icons.admin_panel_settings
                   : Icons.person,
               title: user['name'] ?? '-',
-              subtitle: '${user['email']} - ${user['role']}',
+              subtitle:
+                  '${user['email']} - ${user['role']} - ${isActive ? 'aktif' : 'nonaktif'}',
               trailing: isCurrentUser
                   ? const Chip(
                       label: Text('Saya'),
                       backgroundColor: Colors.redAccent,
                     )
-                  : IconButton(
-                      onPressed: () async {
-                        final success = await ApiService.deleteUser(user['id']);
-                        if (success && mounted) {
-                          setState(refreshData);
-                        }
-                      },
-                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Switch(
+                          value: isActive,
+                          activeThumbColor: Colors.redAccent,
+                          onChanged: (value) async {
+                            final success = await ApiService.toggleUserStatus(
+                              user['id'],
+                              value,
+                            );
+                            if (success && mounted) setState(refreshData);
+                          },
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            final success = await ApiService.deleteUser(
+                              user['id'],
+                            );
+                            if (success && mounted) {
+                              setState(refreshData);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ],
                     ),
             );
           }).toList(),
@@ -425,6 +583,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               title: review['title'] ?? '-',
               subtitle:
                   '${review['user']?['name'] ?? 'Anonim'} - ${review['type']} - Rating ${review['rating']}/5',
+              trailing: IconButton(
+                onPressed: () async {
+                  final success = await ApiService.deleteReview(review['id']);
+                  if (success && mounted) setState(refreshData);
+                },
+                icon: const Icon(Icons.delete, color: Colors.redAccent),
+              ),
             );
           }).toList(),
         );
@@ -487,7 +652,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         adminTile(
           icon: Icons.movie_filter,
           title: 'Kelola katalog movie',
-          subtitle: 'Tambah dan hapus film/drama yang bisa direview user',
+          subtitle: 'Tambah dan hapus film/series yang bisa direview user',
         ),
         adminTile(
           icon: Icons.manage_accounts,

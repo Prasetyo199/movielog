@@ -20,7 +20,10 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/movies', [MovieController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
+    Route::patch('/profile', [AuthController::class, 'updateProfile']);
+    Route::post('/profile', [AuthController::class, 'updateProfile']);
     Route::get('/admin/users', [AdminController::class, 'users']);
+    Route::patch('/admin/users/{user}/status', [AdminController::class, 'toggleUserStatus']);
     Route::delete('/admin/users/{user}', [AdminController::class, 'destroyUser']);
     Route::post('/movies', [MovieController::class, 'store']);
     Route::put('/movies/{movie}', [MovieController::class, 'update']);

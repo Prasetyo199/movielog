@@ -52,9 +52,9 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -135,7 +135,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Buat akun untuk mulai mencatat review film dan drama.',
+                      'Buat akun untuk mulai mencatat review film dan series.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white60, height: 1.4),
                     ),

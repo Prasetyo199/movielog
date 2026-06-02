@@ -55,7 +55,22 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(
+          backgroundColor: const Color(0xFF2A1116),
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  e.toString().replaceFirst('Exception: ', ''),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -136,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Masuk untuk mencatat review film dan drama favoritmu.',
+                      'Masuk untuk mencatat review film dan series favoritmu.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white60, height: 1.4),
                     ),

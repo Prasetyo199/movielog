@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Review;
+use App\Models\Movie;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
@@ -12,6 +13,15 @@ class ReviewController extends Controller
     {
         // Mengambil semua data review beserta data user yang membuatnya
         $reviews = Review::with('user')->latest()->get();
+        $movies = Movie::get()->keyBy(function ($movie) {
+            return strtolower($movie->title.'|'.$movie->type);
+        });
+
+        $reviews->transform(function ($review) use ($movies) {
+            $movie = $movies->get(strtolower($review->title.'|'.$review->type));
+            $review->poster_url = $movie?->poster_url;
+            return $review;
+        });
 
         return response()->json([
             'success' => true,
@@ -27,7 +37,7 @@ class ReviewController extends Controller
         $request->validate([
             'user_id'      => 'required|exists:users,id',
             'title'        => 'required|string|max:255',
-            'type'         => 'required|in:film,drama',
+            'type'         => 'required|in:film,series',
             'genre'        => 'required|string',
             'release_year' => 'required|integer',
             'rating'       => 'required|integer|between:1,5',
@@ -78,7 +88,7 @@ class ReviewController extends Controller
         // Validasi data baru yang dikirim
         $request->validate([
             'title'        => 'sometimes|required|string|max:255',
-            'type'         => 'sometimes|required|in:film,drama',
+            'type'         => 'sometimes|required|in:film,series',
             'genre'         => 'sometimes|required|string',
             'release_year' => 'sometimes|required|integer',
             'rating'       => 'sometimes|required|integer|between:1,5',

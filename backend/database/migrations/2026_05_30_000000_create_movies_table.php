@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('movies', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->enum('type', ['film', 'drama']);
+            $table->enum('type', ['film', 'series']);
             $table->string('genre');
             $table->integer('release_year');
             $table->string('poster_url')->nullable();

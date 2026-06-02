@@ -43,4 +43,28 @@ class AdminController extends Controller
             'message' => 'User berhasil dihapus',
         ]);
     }
+
+    public function toggleUserStatus(Request $request, User $user)
+    {
+        $this->ensureAdmin($request);
+
+        if ($request->user()?->id === $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin tidak bisa menonaktifkan akunnya sendiri',
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $user->update(['is_active' => $data['is_active']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $user->is_active ? 'User diaktifkan' : 'User dinonaktifkan',
+            'data' => $user,
+        ]);
+    }
 }
