@@ -258,6 +258,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  Future<bool> confirmDelete({
+    required String title,
+    required String message,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF15151F),
+          title: Text(title, style: const TextStyle(color: Colors.white)),
+          content: Text(message, style: const TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
   void showAddMovieSheet() => showMovieSheet();
 
   void showMovieSheet({dynamic movie}) {
@@ -655,6 +683,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     IconButton(
                       tooltip: 'Hapus movie',
                       onPressed: () async {
+                        final confirmed = await confirmDelete(
+                          title: 'Hapus Movie',
+                          message:
+                              'Yakin ingin menghapus "${movie['title'] ?? '-'}"?',
+                        );
+                        if (!confirmed) return;
+
                         final success = await ApiService.deleteMovie(
                           movie['id'],
                         );
@@ -720,6 +755,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                         IconButton(
                           onPressed: () async {
+                            final confirmed = await confirmDelete(
+                              title: 'Hapus User',
+                              message:
+                                  'Yakin ingin menghapus user "${user['name'] ?? '-'}"?',
+                            );
+                            if (!confirmed) return;
+
                             final success = await ApiService.deleteUser(
                               user['id'],
                             );
@@ -764,6 +806,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onTap: () => showReviewDetail(review),
               trailing: IconButton(
                 onPressed: () async {
+                  final confirmed = await confirmDelete(
+                    title: 'Hapus Review',
+                    message:
+                        'Yakin ingin menghapus review "${review['title'] ?? '-'}"?',
+                  );
+                  if (!confirmed) return;
+
                   final success = await ApiService.deleteReview(review['id']);
                   if (success && mounted) setState(refreshData);
                 },

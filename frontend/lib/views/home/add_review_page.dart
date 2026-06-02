@@ -132,7 +132,6 @@ class AddReviewPageState extends State<AddReviewPage> {
 
     // Bungkus data sesuai format JSON yang diminta oleh ReviewController Laravel
     final reviewData = {
-      "user_id": ApiService.currentUserId,
       "title": titleController.text,
       "type": selectedType,
       "genre": genreController.text,

@@ -34,8 +34,7 @@ class ReviewController extends Controller
     public function store(Request $request)
     {
         // Validasi inputan terlebih dahulu demi keamanan database
-        $request->validate([
-            'user_id'      => 'required|exists:users,id',
+        $data = $request->validate([
             'title'        => 'required|string|max:255',
             'type'         => 'required|in:film,series',
             'genre'        => 'required|string',
@@ -43,9 +42,10 @@ class ReviewController extends Controller
             'rating'       => 'required|integer|between:1,5',
             'review_text'  => 'required|string',
         ]);
+        $data['user_id'] = $request->user()->id;
 
         // Simpan data ke database
-        $review = Review::create($request->all());
+        $review = Review::create($data);
 
         return response()->json([
             'success' => true,
@@ -85,18 +85,21 @@ class ReviewController extends Controller
             ], 404);
         }
 
+        if (! $this->canManageReview($request, $review)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kamu tidak boleh mengubah review ini'
+            ], 403);
+        }
+
         // Validasi data baru yang dikirim
-        $request->validate([
-            'title'        => 'sometimes|required|string|max:255',
-            'type'         => 'sometimes|required|in:film,series',
-            'genre'         => 'sometimes|required|string',
-            'release_year' => 'sometimes|required|integer',
+        $data = $request->validate([
             'rating'       => 'sometimes|required|integer|between:1,5',
             'review_text'  => 'sometimes|required|string',
         ]);
 
         // Update data di database
-        $review->update($request->all());
+        $review->update($data);
 
         return response()->json([
             'success' => true,
@@ -106,7 +109,7 @@ class ReviewController extends Controller
     }
 
     // 5. DELETE (Menghapus ulasan dari database)
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $review = Review::find($id);
 
@@ -117,6 +120,13 @@ class ReviewController extends Controller
             ], 404);
         }
 
+        if (! $this->canManageReview($request, $review)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kamu tidak boleh menghapus review ini'
+            ], 403);
+        }
+
         // Hapus dari database
         $review->delete();
 
@@ -124,5 +134,12 @@ class ReviewController extends Controller
             'success' => true,
             'message' => 'Review berhasil dihapus'
         ], 200);
+    }
+
+    private function canManageReview(Request $request, Review $review): bool
+    {
+        $user = $request->user();
+
+        return $user?->role === 'admin' || $review->user_id === $user?->id;
     }
 }

@@ -19,6 +19,8 @@ use App\Http\Controllers\AdminController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/movies', [MovieController::class, 'index']);
+Route::apiResource('reviews', ReviewController::class)->only(['index', 'show']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/profile', [AuthController::class, 'updateProfile']);
@@ -29,9 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/movies/{movie}', [MovieController::class, 'update']);
     Route::patch('/movies/{movie}', [MovieController::class, 'update']);
     Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+    Route::apiResource('reviews', ReviewController::class)->only(['store', 'update', 'destroy']);
 });
 
-Route::apiResource('reviews', ReviewController::class);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
