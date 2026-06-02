@@ -128,6 +128,28 @@ class ApiService {
     }
   }
 
+  static Future<bool> updateReview(
+    int id,
+    Map<String, dynamic> reviewData,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/reviews/$id'),
+        headers: headers,
+        body: json.encode(reviewData),
+      );
+
+      if (response.statusCode == 200) return true;
+
+      final data = _decodeResponse(response);
+      throw Exception(
+        _messageFromResponse(data, fallback: 'Gagal memperbarui review.'),
+      );
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
   static Future<List<dynamic>> getMovies() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/movies'));
@@ -181,6 +203,52 @@ class ApiService {
       final data = _decodeResponse(response);
       throw Exception(
         _messageFromResponse(data, fallback: 'Gagal menambahkan movie.'),
+      );
+    } catch (e) {
+      throw Exception('Error Koneksi: $e');
+    }
+  }
+
+  static Future<bool> updateMovie(
+    int id,
+    Map<String, dynamic> movieData, {
+    String? posterPath,
+  }) async {
+    try {
+      if (posterPath != null && posterPath.isNotEmpty) {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$baseUrl/movies/$id'),
+        );
+        request.headers.addAll(multipartHeaders);
+        request.fields['_method'] = 'PATCH';
+        request.fields.addAll(
+          movieData.map((key, value) => MapEntry(key, value.toString())),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath('poster_image', posterPath),
+        );
+
+        final response = await http.Response.fromStream(await request.send());
+        if (response.statusCode == 200) return true;
+
+        final data = _decodeResponse(response);
+        throw Exception(
+          _messageFromResponse(data, fallback: 'Gagal memperbarui movie.'),
+        );
+      }
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/movies/$id'),
+        headers: headers,
+        body: json.encode(movieData),
+      );
+
+      if (response.statusCode == 200) return true;
+
+      final data = _decodeResponse(response);
+      throw Exception(
+        _messageFromResponse(data, fallback: 'Gagal memperbarui movie.'),
       );
     } catch (e) {
       throw Exception('Error Koneksi: $e');

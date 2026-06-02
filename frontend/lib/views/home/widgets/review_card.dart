@@ -17,6 +17,8 @@ class ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ratingText = review.rating.toStringAsFixed(1);
+
     return Card(
       color: const Color(0xFF15151F),
       margin: const EdgeInsets.only(bottom: 14),
@@ -116,7 +118,7 @@ class ReviewCard extends StatelessWidget {
                         const Icon(Icons.star, color: Colors.amber, size: 18),
                         const SizedBox(width: 4),
                         Text(
-                          '${review.rating}/5',
+                          '$ratingText/5',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -164,7 +166,7 @@ class ReviewCard extends StatelessWidget {
                           ),
                         ),
 
-                        if (review.isMine) ...[
+                        if (onEdit != null || onDelete != null) ...[
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(

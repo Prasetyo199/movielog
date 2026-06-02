@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
@@ -92,6 +93,10 @@ class AuthController extends Controller
             $file->move($directory, $filename);
             $data['photo_url'] = asset('uploads/profile-photos/'.$filename);
         }
+
+        $data = collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('users', $key))
+            ->all();
 
         $user->update($data);
 

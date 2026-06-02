@@ -19,7 +19,7 @@ class AddReviewPageState extends State<AddReviewPage> {
   int selectedRating = 0;
   String? selectedMovieTitle;
   String? selectedMovieKey;
-  final Set<String> selectedGenres = {};
+  String selectedGenreFilter = 'Semua';
 
   bool _isLoading = false;
   late Future<List<dynamic>> futureMovies;
@@ -75,8 +75,22 @@ class AddReviewPageState extends State<AddReviewPage> {
         })
         .where((movie) {
           if (movie['title']!.isEmpty) return false;
+          final movieGenres = movie['genre']!
+              .split(',')
+              .map((genre) => genre.trim().toLowerCase())
+              .toSet();
+          final matchesGenre =
+              selectedGenreFilter == 'Semua' ||
+              movieGenres.contains(selectedGenreFilter.toLowerCase());
+          if (!matchesGenre) return false;
           if (query.isEmpty) return true;
-          return movie['title']!.toLowerCase().contains(query);
+          final searchable = [
+            movie['title'],
+            movie['type'] == 'film' ? 'film' : 'series',
+            movie['genre'],
+            movie['year'],
+          ].join(' ').toLowerCase();
+          return searchable.contains(query);
         })
         .toList();
 
@@ -92,14 +106,6 @@ class AddReviewPageState extends State<AddReviewPage> {
       selectedType = normalizeType(movie['type']!);
       genreController.text = movie['genre']!;
       yearController.text = movie['year']!;
-      selectedGenres
-        ..clear()
-        ..addAll(
-          movie['genre']!
-              .split(',')
-              .map((genre) => genre.trim())
-              .where((genre) => genre.isNotEmpty),
-        );
     });
   }
 
@@ -109,10 +115,6 @@ class AddReviewPageState extends State<AddReviewPage> {
 
   String typeLabel(String type) {
     return type == 'film' ? 'Film' : 'Series';
-  }
-
-  void syncGenreController() {
-    genreController.text = selectedGenres.join(', ');
   }
 
   void submitData() async {
@@ -133,7 +135,7 @@ class AddReviewPageState extends State<AddReviewPage> {
       "user_id": ApiService.currentUserId,
       "title": titleController.text,
       "type": selectedType,
-      "genre": selectedGenres.join(', '),
+      "genre": genreController.text,
       "release_year": int.parse(yearController.text),
       "rating": selectedRating,
       "review_text": textController.text,
@@ -196,90 +198,6 @@ class AddReviewPageState extends State<AddReviewPage> {
       onChanged: (value) {
         if (value == null) return;
         setState(() => selectedType = value);
-      },
-    );
-  }
-
-  Widget buildGenrePicker() {
-    return FormField<Set<String>>(
-      validator: (_) {
-        if (selectedGenres.isEmpty) {
-          return 'Pilih minimal satu genre';
-        }
-        return null;
-      },
-      builder: (field) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF15151F),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.local_offer, color: Colors.white54),
-                  SizedBox(width: 8),
-                  Text(
-                    'Pilih Genre',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: genreOptions.map((genre) {
-                  final selected = selectedGenres.contains(genre);
-                  return FilterChip(
-                    label: Text(genre),
-                    selected: selected,
-                    showCheckmark: false,
-                    selectedColor: Colors.redAccent,
-                    backgroundColor: const Color(0xFF09090D),
-                    labelStyle: TextStyle(
-                      color: selected ? Colors.white : Colors.white70,
-                    ),
-                    onSelected: (value) {
-                      setState(() {
-                        if (value) {
-                          selectedGenres.add(genre);
-                        } else {
-                          selectedGenres.remove(genre);
-                        }
-                        syncGenreController();
-                        field.didChange(selectedGenres);
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              if (selectedGenres.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Genre dipilih: ${selectedGenres.join(', ')}',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ],
-              if (field.hasError) ...[
-                const SizedBox(height: 8),
-                Text(
-                  field.errorText!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
       },
     );
   }
@@ -402,7 +320,7 @@ class AddReviewPageState extends State<AddReviewPage> {
       controller: searchMovieController,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        hintText: 'Cari dari katalog admin...',
+        hintText: 'Cari judul, genre, jenis, atau tahun...',
         hintStyle: const TextStyle(color: Colors.white38),
         prefixIcon: const Icon(Icons.search, color: Colors.white54),
         suffixIcon: searchMovieController.text.isEmpty
@@ -416,7 +334,6 @@ class AddReviewPageState extends State<AddReviewPage> {
                     titleController.clear();
                     genreController.clear();
                     yearController.clear();
-                    selectedGenres.clear();
                   });
                 },
                 icon: const Icon(Icons.close, color: Colors.white54),
@@ -439,9 +356,63 @@ class AddReviewPageState extends State<AddReviewPage> {
           titleController.clear();
           genreController.clear();
           yearController.clear();
-          selectedGenres.clear();
         });
       },
+    );
+  }
+
+  Widget buildGenreFilter() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15151F),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.local_offer, color: Colors.white54),
+              SizedBox(width: 8),
+              Text(
+                'Filter Genre',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: ['Semua', ...genreOptions].map((genre) {
+              final selected = selectedGenreFilter == genre;
+              return ChoiceChip(
+                label: Text(genre),
+                selected: selected,
+                selectedColor: Colors.redAccent,
+                backgroundColor: const Color(0xFF09090D),
+                labelStyle: TextStyle(
+                  color: selected ? Colors.white : Colors.white70,
+                ),
+                onSelected: (_) {
+                  setState(() {
+                    selectedGenreFilter = genre;
+                    selectedMovieKey = null;
+                    selectedMovieTitle = null;
+                    titleController.clear();
+                    genreController.clear();
+                    yearController.clear();
+                  });
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -504,7 +475,7 @@ class AddReviewPageState extends State<AddReviewPage> {
               Text(
                 selectedRating == 0
                     ? 'Beri rating'
-                    : 'Rating pribadi: $selectedRating/5',
+                    : 'Rating pribadi: ${selectedRating.toStringAsFixed(1)}/5',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -558,11 +529,9 @@ class AddReviewPageState extends State<AddReviewPage> {
                   children: [
                     buildMovieSearch(),
                     const SizedBox(height: 12),
+                    buildGenreFilter(),
+                    const SizedBox(height: 12),
                     buildMoviePicker(),
-                    const SizedBox(height: 12),
-                    buildTypePicker(),
-                    const SizedBox(height: 12),
-                    buildGenrePicker(),
                     const SizedBox(height: 12),
                     buildReadonlyInfo(),
                     const SizedBox(height: 12),

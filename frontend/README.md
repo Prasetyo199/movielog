@@ -1,17 +1,29 @@
-# frontend
+# MovieLog Frontend
 
-A new Flutter project.
+Frontend MovieLog dibuat menggunakan Flutter. Aplikasi ini terhubung ke backend Laravel di `http://localhost:8000/api`.
 
-## Getting Started
+## Menjalankan Frontend
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Konfigurasi API
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Base URL API dapat diubah di:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```text
+lib/services/api_services.dart
+```
+
+## Fitur Frontend
+
+- Login dan register.
+- Dashboard review film/series.
+- Tambah, edit, dan hapus review user.
+- Detail movie dengan daftar komentar user.
+- Edit profil user.
+- Admin console untuk kelola movie, user, dan review.
+
+Dokumentasi lengkap project ada di README root repository.

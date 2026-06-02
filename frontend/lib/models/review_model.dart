@@ -9,6 +9,7 @@ class ReviewModel {
   final String reviewerName;
   final bool isMine;
   final String imageUrl;
+  final int reviewCount;
 
   const ReviewModel({
     required this.id,
@@ -21,5 +22,6 @@ class ReviewModel {
     required this.reviewerName,
     required this.isMine,
     required this.imageUrl,
+    this.reviewCount = 1,
   });
 }

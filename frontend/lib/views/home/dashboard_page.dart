@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/services/api_services.dart';
 import 'package:frontend/views/admin/admin_dashboard_page.dart';
@@ -84,11 +85,70 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  String movieGroupKey(ReviewModel review) {
+    return [
+      review.title.trim().toLowerCase(),
+      review.type.trim().toLowerCase(),
+      review.releaseYear.toString(),
+    ].join('|');
+  }
+
+  List<ReviewModel> groupReviewsByMovie(List<ReviewModel> reviews) {
+    final grouped = <String, List<ReviewModel>>{};
+    for (final review in reviews) {
+      grouped.putIfAbsent(movieGroupKey(review), () => []).add(review);
+    }
+
+    return grouped.values.map((items) {
+      if (items.length == 1) return items.first;
+
+      final representative = items.first;
+      final averageRating =
+          items.fold<double>(0, (sum, item) => sum + item.rating) /
+          items.length;
+
+      return ReviewModel(
+        id: representative.id,
+        title: representative.title,
+        type: representative.type,
+        genre: representative.genre,
+        releaseYear: representative.releaseYear,
+        rating: double.parse(averageRating.toStringAsFixed(1)),
+        reviewText: '${items.length} review untuk movie ini.',
+        reviewerName: '${items.length} reviewer',
+        isMine: items.any((item) => item.isMine),
+        imageUrl: representative.imageUrl,
+        reviewCount: items.length,
+      );
+    }).toList();
+  }
+
+  List<ReviewModel> reviewsForMovie(ReviewModel review) {
+    final relatedReviews = currentReviews
+        .where((item) => movieGroupKey(item) == movieGroupKey(review))
+        .toList();
+    return relatedReviews.isEmpty ? [review] : relatedReviews;
+  }
+
+  ScrollBehavior get horizontalDragBehavior {
+    return const MaterialScrollBehavior().copyWith(
+      dragDevices: {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
+  }
+
+  String ratingLabel(num rating) => rating.toStringAsFixed(1);
+
   List<ReviewModel> getProcessedReviews({bool onlyMine = false}) {
     var reviews = [...currentReviews];
 
     if (onlyMine) {
       reviews = reviews.where((review) => review.isMine).toList();
+    } else {
+      reviews = groupReviewsByMovie(reviews);
     }
     if (selectedFilter != 'Semua') {
       reviews = reviews
@@ -214,6 +274,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void showDetail(ReviewModel review) {
+    final relatedReviews = reviewsForMovie(review);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -279,7 +340,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${review.rating}/5',
+                                '${ratingLabel(review.rating)}/5',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -293,40 +354,94 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Review',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  review.reviewText,
-                  style: const TextStyle(color: Colors.white70, height: 1.5),
-                ),
-                const SizedBox(height: 18),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.redAccent,
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(
-                    review.reviewerName,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    'Reviewer MovieLog',
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                ),
+                buildReviewComments(relatedReviews),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget buildReviewComments(List<ReviewModel> reviews) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                reviews.length > 1 ? 'Review (${reviews.length})' : 'Review',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...reviews.map((review) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: buildReviewCommentCard(review),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget buildReviewCommentCard(ReviewModel review) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF09090D),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                radius: 17,
+                backgroundColor: Colors.redAccent,
+                child: Icon(Icons.person, color: Colors.white, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  review.reviewerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.star, color: Colors.amber, size: 17),
+              const SizedBox(width: 3),
+              Text(
+                '${ratingLabel(review.rating)}/5',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            review.reviewText,
+            style: const TextStyle(color: Colors.white70, height: 1.45),
+          ),
+        ],
+      ),
     );
   }
 
@@ -367,6 +482,159 @@ class _DashboardPageState extends State<DashboardPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Review berhasil dihapus')));
     }
+  }
+
+  void showEditReviewSheet(ReviewModel review) {
+    final textController = TextEditingController(text: review.reviewText);
+    var selectedRating = review.rating.round().clamp(1, 5);
+    var isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF15151F),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  top: 18,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 18,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            review.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Tutup',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${review.type} - ${review.genre} - ${review.releaseYear}',
+                      style: const TextStyle(color: Colors.white60),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: List.generate(5, (index) {
+                        final rating = index + 1;
+                        final selected = rating <= selectedRating;
+
+                        return IconButton(
+                          tooltip: '$rating dari 5',
+                          onPressed: () {
+                            setSheetState(() => selectedRating = rating);
+                          },
+                          icon: Icon(
+                            selected ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 34,
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: textController,
+                      maxLines: 5,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Isi Review',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        filled: true,
+                        fillColor: const Color(0xFF09090D),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              final reviewText = textController.text.trim();
+                              if (reviewText.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Review tidak boleh kosong'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setSheetState(() => isSaving = true);
+                              try {
+                                final success =
+                                    await ApiService.updateReview(review.id, {
+                                      'rating': selectedRating,
+                                      'review_text': reviewText,
+                                    });
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+
+                                if (success && mounted) {
+                                  refreshReviews();
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Review diperbarui'),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                setSheetState(() => isSaving = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            },
+                      icon: isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(isSaving ? 'Menyimpan...' : 'Simpan Review'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void logout() {
@@ -471,7 +739,9 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
             Text(
-              '${review.type} - ${review.releaseYear}',
+              review.reviewCount > 1
+                  ? '${review.reviewCount} review - ${review.releaseYear}'
+                  : '${review.type} - ${review.releaseYear}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white54, fontSize: 12),
@@ -483,7 +753,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget buildTrendingSection() {
-    final trendingReviews = [...currentReviews]
+    final trendingReviews = groupReviewsByMovie(currentReviews)
       ..sort((a, b) => b.rating.compareTo(a.rating));
     if (trendingReviews.isEmpty) return const SizedBox.shrink();
 
@@ -501,12 +771,15 @@ class _DashboardPageState extends State<DashboardPage> {
         const SizedBox(height: 12),
         SizedBox(
           height: 225,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: trendingReviews.take(8).length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) =>
-                buildPosterCard(trendingReviews[index], index + 1),
+          child: ScrollConfiguration(
+            behavior: horizontalDragBehavior,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: trendingReviews.take(8).length,
+              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              itemBuilder: (context, index) =>
+                  buildPosterCard(trendingReviews[index], index + 1),
+            ),
           ),
         ),
       ],
@@ -583,7 +856,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget buildReviewList(List<ReviewModel> reviews) {
+  Widget buildReviewList(List<ReviewModel> reviews, {required bool onlyMine}) {
     if (reviews.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -605,8 +878,12 @@ class _DashboardPageState extends State<DashboardPage> {
         return ReviewCard(
           review: review,
           onTap: () => showDetail(review),
-          onEdit: null,
-          onDelete: review.isMine ? () => deleteReview(review) : null,
+          onEdit: onlyMine && review.isMine
+              ? () => showEditReviewSheet(review)
+              : null,
+          onDelete: onlyMine && review.isMine
+              ? () => deleteReview(review)
+              : null,
         );
       }).toList(),
     );
@@ -633,7 +910,10 @@ class _DashboardPageState extends State<DashboardPage> {
         currentReviews
           ..clear()
           ..addAll((snapshot.data ?? []).map(reviewFromJson));
-        return buildReviewList(getProcessedReviews(onlyMine: onlyMine));
+        return buildReviewList(
+          getProcessedReviews(onlyMine: onlyMine),
+          onlyMine: onlyMine,
+        );
       },
     );
   }
@@ -755,6 +1035,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final bioController = TextEditingController(
       text: ApiService.currentUserBio ?? '',
     );
+    var isSaving = false;
 
     showModalBottomSheet(
       context: context,
@@ -778,13 +1059,26 @@ class _DashboardPageState extends State<DashboardPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Edit Profil',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Edit Profil',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Tutup',
+                          onPressed: isSaving
+                              ? null
+                              : () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 14),
                     Center(
@@ -861,30 +1155,60 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          final success = await ApiService.updateProfile(
-                            name: nameController.text.trim(),
-                            favoriteGenres: selectedGenres.join(', '),
-                            phone: phoneController.text.trim(),
-                            bio: bioController.text.trim(),
-                            gender: selectedGender,
-                            photoPath: selectedPhotoPath,
-                          );
-                          if (!context.mounted) return;
-                          Navigator.pop(context);
-                          if (success && mounted) {
-                            setState(() {});
-                          }
-                        } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(e.toString())));
-                        }
-                      },
-                      icon: const Icon(Icons.save),
-                      label: const Text('Simpan Profil'),
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              final name = nameController.text.trim();
+                              if (name.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Nama tidak boleh kosong'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setSheetState(() => isSaving = true);
+                              try {
+                                final success = await ApiService.updateProfile(
+                                  name: name,
+                                  favoriteGenres: selectedGenres.join(', '),
+                                  phone: phoneController.text.trim(),
+                                  bio: bioController.text.trim(),
+                                  gender: selectedGender,
+                                  photoPath: selectedPhotoPath,
+                                );
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+                                if (success && mounted) {
+                                  setState(() {});
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Profil diperbarui'),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                setSheetState(() => isSaving = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            },
+                      icon: isSaving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(isSaving ? 'Menyimpan...' : 'Simpan Profil'),
                     ),
                   ],
                 ),
@@ -1080,11 +1404,16 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: const Color(0xFF09090D),
       appBar: AppBar(
         backgroundColor: const Color(0xFF09090D),
+        automaticallyImplyLeading: false,
         elevation: 0,
         title: buildAppBarTitle(),
         actions: [
           if (ApiService.isLoggedIn)
-            IconButton(onPressed: logout, icon: const Icon(Icons.logout))
+            TextButton.icon(
+              onPressed: logout,
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Keluar'),
+            )
           else
             TextButton.icon(
               onPressed: goToRegister,
