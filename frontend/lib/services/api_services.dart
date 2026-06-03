@@ -378,7 +378,7 @@ class ApiService {
     currentUserFavoriteGenres = user['favorite_genres'];
     currentUserPhone = user['phone'];
     currentUserBio = user['bio'];
-    currentUserGender = user['gender'];
+    currentUserGender = user['gender']?.toString();
   }
 
   static String? normalizeMediaUrl(dynamic value) {

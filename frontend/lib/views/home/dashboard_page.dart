@@ -1055,7 +1055,9 @@ class _DashboardPageState extends State<DashboardPage> {
       text: ApiService.currentUserName ?? '',
     );
     String? selectedPhotoPath;
-    String selectedGender = ApiService.currentUserGender ?? genderOptions.first;
+    String selectedGender = genderOptions.contains(ApiService.currentUserGender)
+        ? ApiService.currentUserGender!
+        : genderOptions.first;
     final selectedGenres = (ApiService.currentUserFavoriteGenres ?? '')
         .split(',')
         .map((genre) => genre.trim())
@@ -1155,9 +1157,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     profileInput(nameController, 'Nama', Icons.person),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      initialValue: genderOptions.contains(selectedGender)
-                          ? selectedGender
-                          : genderOptions.first,
+                      initialValue: selectedGender,
                       dropdownColor: const Color(0xFF15151F),
                       style: const TextStyle(color: Colors.white),
                       decoration: profileDecoration('Gender', Icons.wc),

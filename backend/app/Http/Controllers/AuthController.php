@@ -82,6 +82,22 @@ class AuthController extends Controller
         $user = $request->user();
         unset($data['photo']);
 
+        $missingColumns = collect(['favorite_genres', 'phone', 'bio', 'gender'])
+            ->reject(fn ($column) => Schema::hasColumn('users', $column))
+            ->values();
+
+        if ($missingColumns->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kolom profil belum lengkap. Jalankan migration database terlebih dahulu.',
+                'errors' => [
+                    'database' => [
+                        'Kolom belum ada: '.$missingColumns->implode(', '),
+                    ],
+                ],
+            ], 422);
+        }
+
         if ($request->hasFile('photo')) {
             $directory = public_path('uploads/profile-photos');
             if (! is_dir($directory)) {
@@ -93,10 +109,6 @@ class AuthController extends Controller
             $file->move($directory, $filename);
             $data['photo_url'] = asset('uploads/profile-photos/'.$filename);
         }
-
-        $data = collect($data)
-            ->filter(fn ($value, $key) => Schema::hasColumn('users', $key))
-            ->all();
 
         $user->update($data);
 

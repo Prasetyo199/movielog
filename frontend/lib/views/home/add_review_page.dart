@@ -24,6 +24,8 @@ class AddReviewPageState extends State<AddReviewPage> {
   bool _isLoading = false;
   late Future<List<dynamic>> futureMovies;
 
+  bool get hasSelectedMovie => selectedMovieKey != null;
+
   final List<String> genreOptions = const [
     'Action',
     'Adventure',
@@ -118,6 +120,13 @@ class AddReviewPageState extends State<AddReviewPage> {
   }
 
   void submitData() async {
+    if (!hasSelectedMovie) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih film atau series dulu.')),
+      );
+      return;
+    }
+
     if (!formKey.currentState!.validate()) return;
     if (ApiService.currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -263,52 +272,189 @@ class AddReviewPageState extends State<AddReviewPage> {
           );
         }
 
-        return DropdownButtonFormField<String>(
-          initialValue:
-              suggestions.any((movie) => movie['key'] == selectedMovieKey)
-              ? selectedMovieKey
-              : null,
-          dropdownColor: const Color(0xFF15151F),
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Pilih Film / Series',
-            hintStyle: const TextStyle(color: Colors.white70),
-            prefixIcon: const Icon(Icons.movie_filter, color: Colors.white54),
-            filled: true,
-            fillColor: const Color(0xFF15151F),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
+        return Material(
+          color: const Color(0xFF15151F),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => showMoviePickerSheet(suggestions),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    hasSelectedMovie ? Icons.check_circle : Icons.movie_filter,
+                    color: hasSelectedMovie ? Colors.redAccent : Colors.white54,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hasSelectedMovie
+                              ? titleController.text
+                              : 'Pilih Film / Series',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasSelectedMovie
+                                ? Colors.white
+                                : Colors.white70,
+                            fontWeight: hasSelectedMovie
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        if (hasSelectedMovie) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '${typeLabel(selectedType)} • ${genreController.text} • ${yearController.text}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
+                ],
+              ),
             ),
           ),
-          items: suggestions.map((movie) {
-            final title = movie['title']!;
-            final type = typeLabel(movie['type']!);
+        );
+      },
+    );
+  }
 
-            return DropdownMenuItem(
-              value: movie['key'],
-              child: Text('$title - $type', overflow: TextOverflow.ellipsis),
-            );
-          }).toList(),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Pilih film atau series dulu';
-            }
-            return null;
-          },
-          onChanged: (value) {
-            if (value == null) return;
+  void showMoviePickerSheet(List<Map<String, String>> suggestions) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF15151F),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pilih dari katalog',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tutup',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: suggestions.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final movie = suggestions[index];
+                      final isSelected = movie['key'] == selectedMovieKey;
 
-            final movie = suggestions.firstWhere(
-              (item) => item['key'] == value,
-            );
-
-            selectMovieSuggestion(movie);
-          },
+                      return Material(
+                        color: isSelected
+                            ? Colors.redAccent.withValues(alpha: 0.16)
+                            : const Color(0xFF09090D),
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            Navigator.pop(context);
+                            selectMovieSuggestion(movie);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  movie['type'] == 'film'
+                                      ? Icons.movie
+                                      : Icons.live_tv,
+                                  color: Colors.redAccent,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        movie['title']!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        '${typeLabel(movie['type']!)} • ${movie['genre']} • ${movie['year']}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.redAccent,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -333,6 +479,8 @@ class AddReviewPageState extends State<AddReviewPage> {
                     titleController.clear();
                     genreController.clear();
                     yearController.clear();
+                    selectedRating = 0;
+                    textController.clear();
                   });
                 },
                 icon: const Icon(Icons.close, color: Colors.white54),
@@ -355,6 +503,8 @@ class AddReviewPageState extends State<AddReviewPage> {
           titleController.clear();
           genreController.clear();
           yearController.clear();
+          selectedRating = 0;
+          textController.clear();
         });
       },
     );
@@ -405,6 +555,8 @@ class AddReviewPageState extends State<AddReviewPage> {
                     titleController.clear();
                     genreController.clear();
                     yearController.clear();
+                    selectedRating = 0;
+                    textController.clear();
                   });
                 },
               );
@@ -532,61 +684,72 @@ class AddReviewPageState extends State<AddReviewPage> {
                     const SizedBox(height: 12),
                     buildMoviePicker(),
                     const SizedBox(height: 12),
-                    buildReadonlyInfo(),
-                    const SizedBox(height: 12),
-                    FormField<int>(
-                      validator: (_) {
-                        if (selectedRating < 1) {
-                          return 'Pilih rating 1 sampai 5';
-                        }
-                        return null;
-                      },
-                      builder: (field) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            buildRatingPicker(),
-                            if (field.hasError) ...[
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(left: 12),
-                                child: Text(
-                                  field.errorText!,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error,
-                                    fontSize: 12,
+                    if (hasSelectedMovie) ...[
+                      buildReadonlyInfo(),
+                      const SizedBox(height: 12),
+                      FormField<int>(
+                        validator: (_) {
+                          if (selectedRating < 1) {
+                            return 'Pilih rating 1 sampai 5';
+                          }
+                          return null;
+                        },
+                        builder: (field) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              buildRatingPicker(),
+                              if (field.hasError) ...[
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: Text(
+                                    field.errorText!,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: textController,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        labelText: 'Isi Ulasan / Review',
-                        labelStyle: TextStyle(color: Colors.white70),
+                          );
+                        },
                       ),
-                      validator: (v) =>
-                          v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: textController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          labelText: 'Isi Ulasan / Review',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          alignLabelWithHint: true,
+                          filled: true,
+                          fillColor: const Color(0xFF15151F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        validator: (v) =>
+                            v!.isEmpty ? 'Ulasan tidak boleh kosong' : null,
                       ),
-                      onPressed: submitData,
-                      child: const Text(
-                        'Simpan Review',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: submitData,
+                        child: const Text(
+                          'Simpan Review',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
